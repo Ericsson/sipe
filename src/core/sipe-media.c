@@ -59,6 +59,7 @@ struct sipe_media_call_private {
 	struct sipmsg			*invitation;
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
+	GHashTable			*stream_encryption_keys;
 
 	struct sdpmsg			*smsg;
 	GSList				*failed_media;
@@ -97,6 +98,7 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 		sipe_utils_slist_free_full(call_private->failed_media,
 				  (GDestroyNotify)sdpmedia_free);
 		g_free(call_private->with);
+		g_hash_table_destroy(call_private->stream_encryption_keys);
 		g_free(call_private);
 	}
 }
@@ -808,6 +810,8 @@ sipe_media_call_new(struct sipe_core_private *sipe_private,
 
 	call_private->ice_version = ice_version;
 	call_private->encryption_compatible = TRUE;
+	call_private->stream_encryption_keys =
+			g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
 	call_private->public.stream_initialized_cb  = stream_initialized_cb;
 	call_private->public.media_end_cb           = media_end_cb;
@@ -838,6 +842,8 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 	struct sipe_backend_stream *stream;
 	struct sipe_backend_media_relays *backend_media_relays;
 	struct sipe_backend_media *backend_media;
+	guchar *key;
+	int i;
 
 	backend_media_relays = sipe_backend_media_relays_convert(
 						sipe_private->media_relays,
@@ -848,6 +854,14 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 	stream = sipe_backend_media_add_stream(backend_media, id, with, type,
 					       ice_version, initiator,
 					       backend_media_relays);
+
+	key = g_new0(guchar, 30);
+	for (i = 0; i != 30; ++i) {
+		key[i] = rand() & 0xff;
+	}
+
+	g_hash_table_insert(sipe_private->media_call->stream_encryption_keys,
+			g_strdup(id), key);
 
 	sipe_backend_media_relays_free(backend_media_relays);
 
