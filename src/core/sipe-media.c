@@ -418,6 +418,9 @@ sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 	for (; streams; streams = streams->next) {
 		struct sdpmedia *media = backend_stream_to_sdpmedia(backend_media, streams->data);
 		if (media) {
+			media->encryption_key =
+					g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
+
 			msg->media = g_slist_append(msg->media, media);
 
 			if (msg->ip == NULL)
