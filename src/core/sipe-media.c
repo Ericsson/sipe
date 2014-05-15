@@ -60,8 +60,7 @@ struct sipe_media_call_private {
 	struct sipmsg			*invitation;
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
-	gchar				*extra_invite_section;
-	gchar				*invite_content_type;
+	GHashTable			*stream_encryption_keys;
 
 	struct sdpmsg			*smsg;
 	GSList				*failed_media;
@@ -144,6 +143,8 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 		sdpmsg_free(call_private->smsg);
 		sipe_utils_slist_free_full(call_private->failed_media,
 				  (GDestroyNotify)sdpmedia_free);
+		g_free(call_private->with);
+		g_hash_table_destroy(call_private->stream_encryption_keys);
 		g_free(call_private);
 	}
 }
@@ -977,6 +978,8 @@ create_media(struct sipe_core_private *sipe_private, const gchar* with,
 
 	call_private->ice_version = ice_version;
 	call_private->encryption_compatible = TRUE;
+	call_private->stream_encryption_keys =
+			g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
 	call_private->public.stream_initialized_cb  = stream_initialized_cb;
 	call_private->public.stream_end_cb          = stream_end_cb;
@@ -1058,9 +1061,9 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 	struct sipe_media_stream_private *stream_private;
 	struct sipe_backend_media_stream *backend_stream;
 	struct sipe_backend_media_relays *backend_media_relays;
+	struct sipe_backend_media *backend_media;
+	guchar *key;
 	int i;
-	guint min_port = sipe_private->min_media_port;
-	guint max_port = sipe_private->max_media_port;
 
 	backend_media_relays = sipe_backend_media_relays_convert(
 						sipe_private->media_relays,
@@ -1092,6 +1095,14 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 						       ice_version, initiator,
 						       backend_media_relays,
 						       min_port, max_port);
+
+	key = g_new0(guchar, 30);
+	for (i = 0; i != 30; ++i) {
+		key[i] = rand() & 0xff;
+	}
+
+	g_hash_table_insert(sipe_private->media_call->stream_encryption_keys,
+			g_strdup(id), key);
 
 	sipe_backend_media_relays_free(backend_media_relays);
 
