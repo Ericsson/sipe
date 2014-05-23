@@ -60,6 +60,7 @@ struct sipe_media_call_private {
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
 	GHashTable			*stream_encryption_keys;
+	GHashTable			*stream_decryption_keys;
 
 	struct sdpmsg			*smsg;
 	GSList				*failed_media;
@@ -99,6 +100,7 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 				  (GDestroyNotify)sdpmedia_free);
 		g_free(call_private->with);
 		g_hash_table_destroy(call_private->stream_encryption_keys);
+		g_hash_table_destroy(call_private->stream_decryption_keys);
 		g_free(call_private);
 	}
 }
@@ -845,6 +847,8 @@ sipe_media_call_new(struct sipe_core_private *sipe_private,
 	call_private->ice_version = ice_version;
 	call_private->encryption_compatible = TRUE;
 	call_private->stream_encryption_keys =
+			g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	call_private->stream_decryption_keys =
 			g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
 	call_private->public.stream_initialized_cb  = stream_initialized_cb;
