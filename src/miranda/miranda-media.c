@@ -148,10 +148,16 @@ sipe_backend_media_get_active_remote_candidates(struct sipe_media_call *media,
 }
 
 void
-sipe_backend_media_set_encryption_keys(struct sipe_media_call *media,
-				       struct sipe_media_stream *stream,
+sipe_backend_media_set_encryption_keys(struct sipe_backend_media *media,
+				       struct sipe_backend_stream *stream,
 				       const guchar *encryption_key,
 				       const guchar *decryption_key)
+{
+	_NIF();
+}
+
+const gchar *
+sipe_backend_stream_get_id(struct sipe_backend_stream *stream)
 {
 	_NIF();
 }

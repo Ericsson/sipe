@@ -429,14 +429,14 @@ void sipe_backend_media_add_remote_candidates(struct sipe_media_call *media,
 gboolean sipe_backend_media_is_initiator(struct sipe_media_call *media,
 					 struct sipe_media_stream *stream);
 gboolean sipe_backend_media_accepted(struct sipe_backend_media *media);
-gboolean sipe_backend_stream_initialized(struct sipe_media_call *media,
-					 struct sipe_media_stream *stream);
-GList *sipe_backend_media_get_active_local_candidates(struct sipe_media_call *media,
-						      struct sipe_media_stream *stream);
-GList *sipe_backend_media_get_active_remote_candidates(struct sipe_media_call *media,
-						       struct sipe_media_stream *stream);
-void sipe_backend_media_set_encryption_keys(struct sipe_media_call *media,
-					    struct sipe_media_stream *stream,
+gboolean sipe_backend_stream_initialized(struct sipe_backend_media *media,
+					 struct sipe_backend_stream *stream);
+GList *sipe_backend_media_get_active_local_candidates(struct sipe_backend_media *media,
+						      struct sipe_backend_stream *stream);
+GList *sipe_backend_media_get_active_remote_candidates(struct sipe_backend_media *media,
+						       struct sipe_backend_stream *stream);
+void sipe_backend_media_set_encryption_keys(struct sipe_backend_media *media,
+					    struct sipe_backend_stream *stream,
 					    const guchar *encryption_key,
 					    const guchar *decryption_key);
 

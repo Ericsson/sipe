@@ -708,9 +708,24 @@ sipe_backend_media_get_active_local_candidates(struct sipe_media_call *media,
 	return duplicate_tcp_candidates(candidates);
 }
 
-GList *
-sipe_backend_media_get_active_remote_candidates(struct sipe_media_call *media,
-						struct sipe_media_stream *stream)
+void
+sipe_backend_media_set_encryption_keys(struct sipe_backend_media *media,
+				       struct sipe_backend_stream *stream,
+				       const guchar *encryption_key,
+				       const guchar *decryption_key)
+{
+	purple_media_set_encryption_parameters(media->m, stream->sessionid,
+			PURPLE_MEDIA_CIPHER_AES_128_ICM,
+			PURPLE_MEDIA_AUTHENTICATION_HMAC_SHA1_80,
+			(gchar *)encryption_key, 30);
+	purple_media_set_decryption_parameters(media->m, stream->sessionid,
+			stream->participant, PURPLE_MEDIA_CIPHER_AES_128_ICM,
+			PURPLE_MEDIA_AUTHENTICATION_HMAC_SHA1_80,
+			(gchar *)decryption_key, 30);
+}
+
+const gchar *
+sipe_backend_stream_get_id(struct sipe_backend_stream *stream)
 {
 	GList *candidates = purple_media_get_active_remote_candidates(
 			media->backend_private->m, stream->id, media->with);
