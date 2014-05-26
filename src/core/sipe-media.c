@@ -525,11 +525,17 @@ get_encryption_policy(struct sipe_core_private *sipe_private)
 static struct sdpmsg *
 sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 {
+	struct sipe_core_private *sipe_private = call_private->sipe_private;
+	struct sipe_backend_media *backend_media = call_private->public.backend_private;
 	struct sdpmsg *msg = g_new0(struct sdpmsg, 1);
 	GSList *streams = sipe_backend_media_get_streams(backend_media);
+	struct sip_session *session =
+			sipe_session_find_call(sipe_private, call_private->with);
+	struct sip_dialog *dialog = session->dialogs->data;
+
 	const gchar *encryption = NULL;
 	SipeEncryptionPolicy encryption_policy =
-			get_encryption_policy(call_private->sipe_private);
+			get_encryption_policy(sipe_private);
 
 	switch (encryption_policy) {
 		case SIPE_ENCRYPTION_POLICY_REJECTED:
@@ -549,17 +555,19 @@ sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 								  streams->data);
 		if (media) {
 			guchar *key = g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
-			if (key) {
-				media->encryption_key = g_memdup(key, 30);
-			}
 
 			media->encryption_active =
 					call_private->encryption_compatible &&
 					g_hash_table_lookup(call_private->stream_decryption_keys, media->name);
 
+			if (key && (media->encryption_active || dialog->cseq == 0) &&
+			    get_encryption_policy(sipe_private) != SIPE_ENCRYPTION_POLICY_REJECTED) {
+				media->encryption_key = g_memdup(key, 30);
+			}
+
 			msg->media = g_slist_append(msg->media, media);
 
-			if (encryption_policy != call_private->sipe_private->server_av_encryption_policy) {
+			if (encryption_policy != sipe_private->server_av_encryption_policy) {
 				media->attributes =
 						sipe_utils_nameval_add(media->attributes, "encryption", encryption);
 			}
