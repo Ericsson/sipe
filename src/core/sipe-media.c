@@ -446,8 +446,14 @@ sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 	for (; streams; streams = streams->next) {
 		struct sdpmedia *media = backend_stream_to_sdpmedia(backend_media, streams->data);
 		if (media) {
-			media->encryption_key =
-					g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
+			guchar *key = g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
+			if (key) {
+				media->encryption_key = g_memdup(key, 30);
+			}
+
+			media->encryption_active =
+					call_private->encryption_compatible &&
+					g_hash_table_lookup(call_private->stream_decryption_keys, media->name);
 
 			msg->media = g_slist_append(msg->media, media);
 
@@ -631,6 +637,16 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 		}
 
 		backend_codecs = g_list_append(backend_codecs, codec);
+	}
+
+	if (media->encryption_key && media->encryption_active &&
+	    !g_hash_table_lookup(call_private->stream_decryption_keys, media->name)) {
+		guchar *encryption_key =
+				g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
+		g_hash_table_insert(call_private->stream_decryption_keys,
+				g_strdup(media->name), g_memdup(media->encryption_key, 30));
+		sipe_backend_media_set_encryption_keys(backend_media,
+				backend_stream, encryption_key, media->encryption_key);
 	}
 
 	result = sipe_backend_set_remote_codecs(backend_media,
