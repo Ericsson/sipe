@@ -343,8 +343,6 @@ backend_stream_to_sdpmedia(struct sipe_backend_media *backend_media,
 		g_free(tmp);
 	}
 
-	attributes = sipe_utils_nameval_add(attributes, "encryption", "rejected");
-
 	media->attributes = attributes;
 
 	// Process remote candidates
@@ -356,12 +354,40 @@ backend_stream_to_sdpmedia(struct sipe_backend_media *backend_media,
 	return media;
 }
 
+static SipeEncryptionPolicy
+get_encryption_policy(struct sipe_core_private *sipe_private)
+{
+	SipeEncryptionPolicy result =
+			sipe_backend_media_get_encryption_policy(SIPE_CORE_PUBLIC);
+	if (result == SIPE_ENCRYPTION_POLICY_OBEY_SERVER) {
+		result = sipe_private->server_av_encryption_policy;
+	}
+
+	return result;
+}
+
 static struct sdpmsg *
 sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 {
 	struct sipe_backend_media *backend_media = call_private->public.backend_private;
 	struct sdpmsg *msg = g_new0(struct sdpmsg, 1);
 	GSList *streams = sipe_backend_media_get_streams(backend_media);
+	const gchar *encryption = NULL;
+	SipeEncryptionPolicy encryption_policy =
+			get_encryption_policy(call_private->sipe_private);
+
+	switch (encryption_policy) {
+		case SIPE_ENCRYPTION_POLICY_REJECTED:
+			encryption = "rejected";
+			break;
+		case SIPE_ENCRYPTION_POLICY_OPTIONAL:
+			encryption = "optional";
+			break;
+		case SIPE_ENCRYPTION_POLICY_REQUIRED:
+		default:
+			encryption = "required";
+			break;
+	}
 
 	for (; streams; streams = streams->next) {
 		struct sdpmedia *media = backend_stream_to_sdpmedia(backend_media, streams->data);
@@ -370,6 +396,11 @@ sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 					g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
 
 			msg->media = g_slist_append(msg->media, media);
+
+			if (encryption_policy != call_private->sipe_private->server_av_encryption_policy) {
+				media->attributes =
+						sipe_utils_nameval_add(media->attributes, "encryption", encryption);
+			}
 
 			if (msg->ip == NULL)
 				msg->ip = g_strdup(media->ip);
