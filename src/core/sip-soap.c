@@ -34,6 +34,7 @@
 
 #include "sip-soap.h"
 #include "sip-transport.h"
+#include "sipe-backend.h"
 #include "sipe-core.h"
 #include "sipe-core-private.h"
 #include "sipe-utils.h"
