@@ -684,18 +684,6 @@ process_invite_call_response(struct sipe_core_private *sipe_private,
 								   struct sipmsg *msg,
 								   struct transaction *trans);
 
-struct sipe_media_stream *
-sipe_core_media_get_stream_by_id(struct sipe_media_call *call, const gchar *id)
-{
-	GSList *i;
-	for (i = SIPE_MEDIA_CALL_PRIVATE->streams; i; i = i->next) {
-		struct sipe_media_stream *stream = i->data;
-		if (sipe_strequal(stream->id, id))
-			return stream;
-	}
-	return NULL;
-}
-
 static gboolean
 update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 			    struct sdpmedia *media)
@@ -819,9 +807,6 @@ apply_remote_message(struct sipe_media_call_private* call_private,
 	for (i = call_private->failed_media; i; i = i->next) {
 		msg->media = g_slist_remove(msg->media, i->data);
 	}
-
-	/* FALSE if all streams failed - call ends. */
-	return msg->media != NULL;
 }
 
 static gboolean
