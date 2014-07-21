@@ -1023,6 +1023,7 @@ static PurpleMediaSessionType sipe_media_to_purple(SipeMediaType type)
 	switch (type) {
 		case SIPE_MEDIA_AUDIO: return PURPLE_MEDIA_AUDIO;
 		case SIPE_MEDIA_VIDEO: return PURPLE_MEDIA_VIDEO;
+		case SIPE_MEDIA_APPLICATION: return PURPLE_MEDIA_APPLICATION;
 		default:               return PURPLE_MEDIA_NONE;
 	}
 }
