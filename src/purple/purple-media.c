@@ -427,67 +427,8 @@ sipe_backend_media_relays_free(struct sipe_backend_media_relays *media_relays)
 #endif
 }
 
-static void
-stream_readable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
-		 SIPE_UNUSED_PARAMETER PurpleMedia *media,
-		 const gchar *sessionid,
-		 SIPE_UNUSED_PARAMETER const gchar *participant,
-		 gpointer user_data)
-{
-	struct sipe_media_call *call = (struct sipe_media_call *)user_data;
-	struct sipe_media_stream *stream;
-
-	SIPE_DEBUG_INFO_NOFORMAT("Stream readable");
-
-	stream = sipe_core_media_get_stream_by_id(call, sessionid);
-
-	if (stream && call->read_cb) {
-		call->read_cb(call, stream);
-	}
-}
-
-gint
-sipe_backend_media_read(struct sipe_media_call *media,
-			struct sipe_media_stream *stream,
-			guint8 *buffer, guint buffer_len, gboolean blocking)
-{
-	return purple_media_manager_receive_application_data(
-			purple_media_manager_get(), media->backend_private->m,
-			stream->id, media->with, buffer, buffer_len, blocking);
-}
-
-static void
-stream_writable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
-		   SIPE_UNUSED_PARAMETER PurpleMedia *media,
-		   const gchar *session_id,
-		   SIPE_UNUSED_PARAMETER const gchar *participant,
-		   gboolean writable,
-		   gpointer user_data)
-{
-	struct sipe_media_call *call = (struct sipe_media_call *)user_data;
-	struct sipe_media_stream *stream;
-
-	SIPE_DEBUG_INFO("Stream %swritable", writable ? "" : "not ");
-
-	stream = sipe_core_media_get_stream_by_id(call, session_id);
-
-	if (stream && call->writable_cb) {
-		call->writable_cb(call, stream, writable);
-	}
-}
-
-gint
-sipe_backend_media_write(struct sipe_media_call *media,
-			 struct sipe_media_stream *stream,
-			 guint8 *buffer, guint buffer_len, gboolean blocking)
-{
-	return purple_media_manager_send_application_data(
-			purple_media_manager_get(), media->backend_private->m,
-			stream->id, media->with, buffer, buffer_len, blocking);
-}
-
-struct sipe_backend_media_stream *
-sipe_backend_media_add_stream(struct sipe_media_call *call,
+struct sipe_backend_stream *
+sipe_backend_media_add_stream(struct sipe_backend_media *media,
 			      const gchar *id,
 			      const gchar *participant,
 			      SipeMediaType type,
@@ -499,11 +440,8 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 	struct sipe_backend_media *media = call->backend_private;
 	struct sipe_backend_media_stream *stream = NULL;
 	PurpleMediaSessionType prpl_type = sipe_media_to_purple(type);
-	PurpleMediaAppDataCallbacks callbacks = {
-			stream_readable_cb, stream_writable_cb
-	};
 	// Preallocate enough space for all potential parameters to fit.
-	GParameter *params = g_new0(GParameter, 6);
+	GParameter *params = g_new0(GParameter, 5);
 	guint params_cnt = 0;
 	gchar *transmitter;
 	GValue *relay_info = NULL;
@@ -519,37 +457,11 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 				 NICE_COMPATIBILITY_OC2007R2);
 		++params_cnt;
 
-		if (min_port != 0) {
-			params[params_cnt].name = "min-port";
-			g_value_init(&params[params_cnt].value, G_TYPE_UINT);
-			g_value_set_uint(&params[params_cnt].value, min_port);
-			++params_cnt;
-		}
-
-		if (max_port != 0) {
-			params[params_cnt].name = "max-port";
-			g_value_init(&params[params_cnt].value, G_TYPE_UINT);
-			g_value_set_uint(&params[params_cnt].value, max_port);
-			++params_cnt;
-		}
-
 		if (media_relays) {
 			params[params_cnt].name = "relay-info";
 			g_value_init(&params[params_cnt].value, SIPE_RELAYS_G_TYPE);
 			g_value_set_boxed(&params[params_cnt].value, media_relays);
 			relay_info = &params[params_cnt].value;
-			++params_cnt;
-		}
-
-		if (type == SIPE_MEDIA_APPLICATION) {
-			params[params_cnt].name = "ice-udp";
-			g_value_init(&params[params_cnt].value, G_TYPE_BOOLEAN);
-			g_value_set_boolean(&params[params_cnt].value, FALSE);
-			++params_cnt;
-
-			params[params_cnt].name = "reliable";
-			g_value_init(&params[params_cnt].value, G_TYPE_BOOLEAN);
-			g_value_set_boolean(&params[params_cnt].value, TRUE);
 			++params_cnt;
 		}
 	} else {
