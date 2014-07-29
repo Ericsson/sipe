@@ -733,8 +733,8 @@ sipe_miranda_FileDeny( SIPPROTO *pr, HANDLE hContact, HANDLE hTransfer, const PR
 {
 	struct sipe_file_transfer *ft = (struct sipe_file_transfer *)hTransfer;
 	FT_SIPE_DEBUG_INFO("FileDeny: reason <%s>", szReason);
-	if (ft->backend_private->incoming)
-		sipe_core_ft_cancel(ft);
+	if (ft->backend_private->incoming && ft->user_rejected)
+		ft->user_rejected(ft);
 	free_xfer_struct(ft->backend_private);
 	return 0;
 }
