@@ -307,6 +307,7 @@ void sipe_ft_incoming_transfer(struct sipe_core_private *sipe_private,
 	ft_private->sipe_private = sipe_private;
 
 	ft_private->public.init = ft_incoming_init;
+	ft_private->public.user_rejected = ft_user_rejected;
 
 	generate_key(ft_private->encryption_key, SIPE_FT_KEY_LENGTH);
 	generate_key(ft_private->hash_key, SIPE_FT_KEY_LENGTH);
