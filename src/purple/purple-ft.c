@@ -158,8 +158,13 @@ ft_free_xfer_struct(PurpleXfer *xfer)
 static void
 ft_request_denied(PurpleXfer *xfer)
 {
-	if (purple_xfer_get_xfer_type(xfer) == PURPLE_XFER_TYPE_RECEIVE)
-		sipe_core_ft_cancel(PURPLE_XFER_TO_SIPE_FILE_TRANSFER);
+	if (purple_xfer_get_xfer_type(xfer) == PURPLE_XFER_TYPE_RECEIVE) {
+		struct sipe_file_transfer *ft = PURPLE_XFER_TO_SIPE_FILE_TRANSFER;
+		if (ft->cancelled) {
+			ft->cancelled(ft);
+		}
+	}
+
 	ft_free_xfer_struct(xfer);
 }
 

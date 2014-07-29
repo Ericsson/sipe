@@ -62,6 +62,8 @@
 static void
 ft_outgoing_init(struct sipe_file_transfer *ft, const gchar *filename,
 		 gsize size, const gchar *who);
+static void
+ft_cancelled(struct sipe_file_transfer *ft);
 
 void sipe_ft_raise_error_and_cancel(struct sipe_file_transfer_private *ft_private,
 				    const gchar *errmsg)
@@ -85,6 +87,7 @@ struct sipe_file_transfer *sipe_core_ft_allocate(struct sipe_core_public *sipe_p
 	ft_private->sipe_private      = sipe_private;
 
 	ft_private->public.init = ft_outgoing_init;
+	ft_private->public.cancelled = ft_cancelled;
 
 	ft_private->invitation_cookie = g_strdup_printf("%u", rand() % 1000000000);
 
@@ -137,7 +140,8 @@ static void sipe_ft_request(struct sipe_file_transfer_private *ft_private,
 			      NULL);
 }
 
-void sipe_core_ft_cancel(struct sipe_file_transfer *ft)
+static void
+ft_cancelled(struct sipe_file_transfer *ft)
 {
 	struct sipe_file_transfer_private *ft_private = SIPE_FILE_TRANSFER_PRIVATE;
 
@@ -309,6 +313,7 @@ void sipe_ft_incoming_transfer(struct sipe_core_private *sipe_private,
 	ft_private->sipe_private = sipe_private;
 
 	ft_private->public.init = ft_incoming_init;
+	ft_private->public.cancelled = ft_cancelled;
 
 	generate_key(ft_private->encryption_key, SIPE_FT_KEY_LENGTH);
 	generate_key(ft_private->hash_key, SIPE_FT_KEY_LENGTH);
