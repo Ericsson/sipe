@@ -272,16 +272,11 @@ ft_read(guchar **buffer,
 	);
 }
 
-static void
-tftp_outgoing_stop(PurpleXfer *xfer)
+static gssize
+tftp_write(const guchar *buffer, size_t size, PurpleXfer *xfer)
 {
-	if (sipe_core_tftp_outgoing_stop(PURPLE_XFER_TO_SIPE_FILE_TRANSFER)) {
-		/* We're done with this transfer */
-		ft_free_xfer_struct(xfer);
-	}
-}
-
-	bytes_written = ft->write(ft, buffer, size);
+	gssize bytes_written = sipe_core_tftp_write(PURPLE_XFER_TO_SIPE_FILE_TRANSFER,
+						    buffer, size);
 
 	if ((purple_xfer_get_bytes_remaining(xfer) - bytes_written) == 0)
 		purple_xfer_set_completed(xfer, TRUE);
@@ -332,7 +327,7 @@ void sipe_backend_ft_incoming(struct sipe_core_public *sipe_public,
 		purple_xfer_set_cancel_send_fnc(xfer, ft_free_xfer_struct);
 		purple_xfer_set_cancel_recv_fnc(xfer, ft_free_xfer_struct);
 		purple_xfer_set_start_fnc(xfer, ft_start);
-		purple_xfer_set_end_fnc(xfer, tftp_incoming_stop);
+		purple_xfer_set_end_fnc(xfer, ft_end);
 		purple_xfer_set_read_fnc(xfer, tftp_read);
 
 		purple_xfer_request(xfer);
@@ -416,7 +411,7 @@ PurpleXfer *sipe_purple_ft_new_xfer(PurpleConnection *gc, const char *who)
 		purple_xfer_set_cancel_send_fnc(xfer, ft_free_xfer_struct);
 		purple_xfer_set_cancel_recv_fnc(xfer, ft_free_xfer_struct);
 		purple_xfer_set_start_fnc(xfer, ft_start);
-		purple_xfer_set_end_fnc(xfer, tftp_outgoing_stop);
+		purple_xfer_set_end_fnc(xfer, ft_end);
 		purple_xfer_set_write_fnc(xfer, tftp_write);
 	}
 
