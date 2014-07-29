@@ -210,22 +210,15 @@ ft_request_denied(PurpleXfer *xfer)
 }
 
 static void
-ft_cancelled(PurpleXfer *xfer)
+ft_init(PurpleXfer *xfer)
 {
 	struct sipe_file_transfer *ft = PURPLE_XFER_TO_SIPE_FILE_TRANSFER;
-	PurpleXferStatus status = purple_xfer_get_status(xfer);
+	g_return_if_fail(ft->init);
 
-	if (ft->cancelled) {
-		if (status == PURPLE_XFER_STATUS_CANCEL_LOCAL) {
-			ft->cancelled(ft, TRUE);
-		} else if (status == PURPLE_XFER_STATUS_CANCEL_REMOTE) {
-			ft->cancelled(ft, FALSE);
-		} else {
-			// We shouldn't ever get here.
-		}
-	}
-
-	ft_free_xfer_struct(xfer);
+	ft->init(ft,
+		 purple_xfer_get_filename(xfer),
+		 purple_xfer_get_size(xfer),
+		 purple_xfer_get_remote_user(xfer));
 }
 
 static void
@@ -291,8 +284,8 @@ ft_read(guchar **buffer,
 	);
 }
 
-static gssize
-ft_write(const guchar *buffer, size_t size, PurpleXfer *xfer)
+static void
+tftp_outgoing_start(PurpleXfer *xfer)
 {
 	struct sipe_file_transfer *ft = PURPLE_XFER_TO_SIPE_FILE_TRANSFER;
 	gssize bytes_written = 0;
@@ -344,6 +337,14 @@ void sipe_backend_ft_incoming(struct sipe_core_public *sipe_public,
 	if (xfer) {
 		purple_xfer_set_filename(xfer, file_name);
 		purple_xfer_set_size(xfer, file_size);
+
+		purple_xfer_set_init_fnc(xfer, ft_init);
+		purple_xfer_set_request_denied_fnc(xfer, ft_request_denied);
+		purple_xfer_set_cancel_send_fnc(xfer, ft_free_xfer_struct);
+		purple_xfer_set_cancel_recv_fnc(xfer, ft_free_xfer_struct);
+		purple_xfer_set_start_fnc(xfer, tftp_incoming_start);
+		purple_xfer_set_end_fnc(xfer, tftp_incoming_stop);
+		purple_xfer_set_read_fnc(xfer, tftp_read);
 
 		purple_xfer_request(xfer);
 	}
@@ -399,6 +400,38 @@ void sipe_purple_ft_send_file(PurpleConnection *gc,
 		else
 			purple_xfer_request(xfer);
 	}
+}
+
+PurpleXfer *sipe_purple_ft_new_xfer(PurpleConnection *gc, const char *who)
+{
+	PurpleXfer *xfer = NULL;
+
+#if !PURPLE_VERSION_CHECK(3,0,0)
+	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
+		return NULL;
+	}
+#endif
+
+	xfer = purple_xfer_new(purple_connection_get_account(gc),
+					   PURPLE_XFER_TYPE_SEND,
+					   who);
+
+	if (xfer) {
+		struct sipe_file_transfer *ft = sipe_core_ft_allocate(PURPLE_GC_TO_SIPE_CORE_PUBLIC);
+
+		ft->backend_private = (struct sipe_backend_file_transfer *)xfer;
+		purple_xfer_set_protocol_data(xfer, ft);
+
+		purple_xfer_set_init_fnc(xfer, ft_init);
+		purple_xfer_set_request_denied_fnc(xfer, ft_request_denied);
+		purple_xfer_set_cancel_send_fnc(xfer, ft_free_xfer_struct);
+		purple_xfer_set_cancel_recv_fnc(xfer, ft_free_xfer_struct);
+		purple_xfer_set_start_fnc(xfer, tftp_outgoing_start);
+		purple_xfer_set_end_fnc(xfer, tftp_outgoing_stop);
+		purple_xfer_set_write_fnc(xfer, tftp_write);
+	}
+
+	return xfer;
 }
 
 gboolean

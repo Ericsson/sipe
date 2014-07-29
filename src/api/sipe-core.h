@@ -80,15 +80,6 @@ struct sipe_file_transfer {
 
 	void (* init)(struct sipe_file_transfer *ft, const gchar *filename,
 		      gsize size, const gchar *who);
-	void (* start)(struct sipe_file_transfer *ft, gsize total_size);
-	gssize (* read)(struct sipe_file_transfer *ft, guchar **buffer,
-			gsize bytes_remaining, gsize bytes_available);
-	gssize (* write)(struct sipe_file_transfer *ft, const guchar *buffer,
-			 gsize size);
-	gboolean (* end)(struct sipe_file_transfer *ft);
-	void (* user_rejected)(struct sipe_file_transfer *ft);
-	void (* cancelled)(struct sipe_file_transfer *ft, gboolean local);
-	void (* deallocate)(struct sipe_file_transfer *ft);
 };
 
 /**
@@ -450,16 +441,9 @@ void sipe_core_media_phone_call(struct sipe_core_public *sipe_public,
 void sipe_core_media_test_call(struct sipe_core_public *sipe_public);
 
 /* file transfer */
-struct sipe_file_transfer *
-sipe_core_ft_create_outgoing(struct sipe_core_public *sipe_public);
-
-struct sipe_file_transfer *
-sipe_core_ft_lync_create_outgoing(struct sipe_core_public *sipe_public);
-
-/* application sharing */
-
-void sipe_core_share_application(struct sipe_core_public *sipe_public,
-				 const gchar *who);
+struct sipe_file_transfer *sipe_core_ft_allocate(struct sipe_core_public *sipe_public);
+void sipe_core_ft_deallocate(struct sipe_file_transfer *ft);
+void sipe_core_ft_cancel(struct sipe_file_transfer *ft);
 
 /* group chat */
 gboolean sipe_core_groupchat_query_rooms(struct sipe_core_public *sipe_public);
