@@ -253,17 +253,23 @@ struct sipe_backend_media *
 sipe_backend_media_new(struct sipe_core_public *sipe_public,
 		       struct sipe_media_call *call,
 		       const gchar *participant,
-		       gboolean initiator)
+		       gboolean initiator,
+		       gboolean hidden_from_ui)
 {
 	struct sipe_backend_media *media = g_new0(struct sipe_backend_media, 1);
 	struct sipe_backend_private *purple_private = sipe_public->backend_private;
 	PurpleMediaManager *manager = purple_media_manager_get();
 	GstElement *pipeline;
 
-	media->m = purple_media_manager_create_media(manager,
-						     purple_private->account,
-						     "fsrtpconference",
-						     participant, initiator);
+	if (hidden_from_ui) {
+		media->m = purple_media_manager_create_private_media(manager,
+				purple_private->account, "fsrtpconference",
+				participant, initiator);
+	} else {
+		media->m = purple_media_manager_create_media(manager,
+				purple_private->account, "fsrtpconference",
+				participant, initiator);
+	}
 
 	g_signal_connect(G_OBJECT(media->m), "candidates-prepared",
 			 G_CALLBACK(on_candidates_prepared_cb), call);
