@@ -87,6 +87,7 @@ sipe_core_ft_create_outgoing(struct sipe_core_public *sipe_public)
 	ft_private->sipe_private      = sipe_private;
 
 	ft_private->public.init = ft_outgoing_init;
+	ft_private->public.deallocate = sipe_ft_free;
 
 	ft_private->invitation_cookie = g_strdup_printf("%u", rand() % 1000000000);
 
@@ -308,6 +309,7 @@ void sipe_ft_incoming_transfer(struct sipe_core_private *sipe_private,
 
 	ft_private->public.init = ft_incoming_init;
 	ft_private->public.user_rejected = ft_user_rejected;
+	ft_private->public.deallocate = sipe_ft_free;
 
 	generate_key(ft_private->encryption_key, SIPE_FT_KEY_LENGTH);
 	generate_key(ft_private->hash_key, SIPE_FT_KEY_LENGTH);

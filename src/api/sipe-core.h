@@ -81,6 +81,7 @@ struct sipe_file_transfer {
 	void (* init)(struct sipe_file_transfer *ft, const gchar *filename,
 		      gsize size, const gchar *who);
 	void (* user_rejected)(struct sipe_file_transfer *ft);
+	void (* deallocate)(struct sipe_file_transfer *ft);
 };
 
 /**
@@ -443,7 +444,6 @@ void sipe_core_media_test_call(struct sipe_core_public *sipe_public);
 
 /* file transfer */
 struct sipe_file_transfer *sipe_core_ft_allocate(struct sipe_core_public *sipe_public);
-void sipe_core_ft_deallocate(struct sipe_file_transfer *ft);
 
 /* group chat */
 gboolean sipe_core_groupchat_query_rooms(struct sipe_core_public *sipe_public);
