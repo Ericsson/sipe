@@ -841,8 +841,9 @@ error_cb(struct sipe_media_call *call, gchar *message)
 }
 
 static struct sipe_media_call_private *
-sipe_media_call_new(struct sipe_core_private *sipe_private,
-		    const gchar* with, gboolean initiator, SipeIceVersion ice_version)
+create_media(struct sipe_core_private *sipe_private, const gchar* with,
+	     gboolean initiator, SipeIceVersion ice_version,
+	     gboolean hidden_from_ui)
 {
 	struct sipe_media_call_private *call_private = g_new0(struct sipe_media_call_private, 1);
 	gchar *cname;
@@ -855,7 +856,8 @@ sipe_media_call_new(struct sipe_core_private *sipe_private,
 	call_private->public.backend_private = sipe_backend_media_new(SIPE_CORE_PUBLIC,
 								      SIPE_MEDIA_CALL,
 								      with,
-								      initiator);
+								      initiator,
+								      hidden_from_ui);
 	sipe_backend_media_set_cname(call_private->public.backend_private, cname);
 
 	call_private->ice_version = ice_version;
@@ -876,6 +878,22 @@ sipe_media_call_new(struct sipe_core_private *sipe_private,
 	g_free(cname);
 
 	return call_private;
+}
+
+static struct sipe_media_call_private *
+sipe_media_call_new(struct sipe_core_private *sipe_private,
+		    const gchar* with, gboolean initiator,
+		    SipeIceVersion ice_version)
+{
+	return create_media(sipe_private, with, initiator, ice_version, FALSE);
+}
+
+static struct sipe_media_call_private *
+sipe_data_session_new(struct sipe_core_private *sipe_private,
+		      const gchar* with, gboolean initiator,
+		      SipeIceVersion ice_version)
+{
+	return create_media(sipe_private, with, initiator, ice_version, TRUE);
 }
 
 void sipe_media_hangup(struct sipe_media_call_private *call_private)
@@ -1132,7 +1150,12 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 		gchar *with = parse_from(sipmsg_find_header(msg, "From"));
 		struct sip_session *session;
 
-		call_private = sipe_media_call_new(sipe_private, with, FALSE, smsg->ice_version);
+		if (strstr(msg->body, "m=data")) {
+			call_private = sipe_data_session_new(sipe_private, with, FALSE, smsg->ice_version);
+		} else {
+			call_private = sipe_media_call_new(sipe_private, with, FALSE, smsg->ice_version);
+		}
+
 		session = sipe_session_add_call(sipe_private, with);
 		sipe_media_dialog_init(session, msg);
 

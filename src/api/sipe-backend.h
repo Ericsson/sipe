@@ -379,7 +379,8 @@ struct sipe_media_relay {
 struct sipe_backend_media *sipe_backend_media_new(struct sipe_core_public *sipe_public,
 						  struct sipe_media_call *call,
 						  const gchar *participant,
-						  gboolean initiator);
+						  gboolean initiator,
+						  gboolean hidden_from_ui);
 void sipe_backend_media_free(struct sipe_backend_media *media);
 
 void sipe_backend_media_set_cname(struct sipe_backend_media *media, gchar *cname);
