@@ -328,7 +328,7 @@ void sipe_backend_ft_incoming(struct sipe_core_public *sipe_public,
 		purple_xfer_set_cancel_recv_fnc(xfer, ft_free_xfer_struct);
 		purple_xfer_set_start_fnc(xfer, ft_start);
 		purple_xfer_set_end_fnc(xfer, ft_end);
-		purple_xfer_set_read_fnc(xfer, tftp_read);
+		purple_xfer_set_read_fnc(xfer, ft_read);
 
 		purple_xfer_request(xfer);
 	}
