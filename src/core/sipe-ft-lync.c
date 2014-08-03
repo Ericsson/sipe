@@ -20,6 +20,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <glib.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +32,7 @@
 #include "sipe-ft-lync.h"
 #include "sipe-media.h"
 #include "sipe-mime.h"
+#include "sipe-session.h"
 #include "sipe-utils.h"
 #include "sipe-xml.h"
 #include "sipmsg.h"
@@ -39,6 +44,52 @@ sipe_file_transfer_lync_free(struct sipe_file_transfer_lync *ft_private)
 	g_free(ft_private->sdp);
 	g_free(ft_private->id);
 	g_free(ft_private);
+}
+
+static gboolean
+request_download_file(struct sipe_file_transfer_lync *ft_private)
+{
+	gchar *body;
+
+	static const gchar *SUCCESS_RESPONSE =
+		"<response xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\" code=\"success\"/>";
+
+	static const gchar *DOWNLOAD_FILE_REQUEST =
+		"<request xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\">"
+			"<downloadFile>"
+				"<fileInfo>"
+					"<id>%s</id>"
+					"<name>%s</name>"
+				"</fileInfo>"
+			"</downloadFile>"
+		"</request>";
+
+	body = g_strdup_printf(SUCCESS_RESPONSE, ft_private->request_id);
+
+	sip_transport_info(ft_private->sipe_private,
+			   "Content-Type: application/ms-filetransfer+xml\r\n",
+			   body,
+			   ft_private->dialog,
+			   NULL);
+
+	g_free(body);
+
+	body = g_strdup_printf(DOWNLOAD_FILE_REQUEST,
+			       ft_private->request_id + 1,
+			       ft_private->id,
+			       ft_private->file_name);
+
+	sip_transport_info(ft_private->sipe_private,
+			   "Content-Type: application/ms-filetransfer+xml\r\n",
+			   body,
+			   ft_private->dialog,
+			   NULL);
+
+	g_free(body);
+
+	sipe_file_transfer_lync_free(ft_private);
+
+	return FALSE;
 }
 
 static void
@@ -85,23 +136,35 @@ void
 process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 				struct sipmsg *msg)
 {
-	struct sipe_file_transfer_lync *ft_private =
-			g_new0(struct sipe_file_transfer_lync, 1);
+	struct sipe_file_transfer_lync *ft_private;
+	gchar *from;
+	struct sip_session *session;
+
+	ft_private = g_new0(struct sipe_file_transfer_lync, 1);
 	sipe_mime_parts_foreach(sipmsg_find_header(msg, "Content-Type"),
 				msg->body, mime_mixed_cb, ft_private);
 
 	if (!ft_private->file_name || !ft_private->file_size || !ft_private->sdp) {
 		sip_transport_response(sipe_private, msg, 488, "Not Acceptable Here", NULL);
-	} else {
-		g_free(msg->body);
-		msg->body = ft_private->sdp;
-		msg->bodylen = strlen(msg->body);
-		ft_private->sdp = NULL;
-
-		process_incoming_invite_call(sipe_private, msg);
+		sipe_file_transfer_lync_free(ft_private);
+		return;
 	}
 
-	sipe_file_transfer_lync_free(ft_private);
+	g_free(msg->body);
+	msg->body = ft_private->sdp;
+	msg->bodylen = strlen(msg->body);
+	ft_private->sdp = NULL;
+
+	process_incoming_invite_call(sipe_private, msg);
+
+	from = parse_from(sipmsg_find_header(msg, "From"));
+	session = sipe_session_find_call(sipe_private, from);
+	g_free(from);
+
+	ft_private->dialog = session->dialogs->data;
+	ft_private->sipe_private = sipe_private;
+
+	g_timeout_add_seconds(10, (GSourceFunc)request_download_file, (gpointer)ft_private);
 }
 
 /*
