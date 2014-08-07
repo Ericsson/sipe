@@ -368,10 +368,8 @@ void sipe_purple_ft_send_file(PurpleConnection *gc,
 			      const char *who,
 			      const char *file)
 {
-	// TODO: retry with old FT.
 	struct sipe_file_transfer *ft =
-			sipe_core_ft_lync_create_outgoing(PURPLE_GC_TO_SIPE_CORE_PUBLIC);
-			//sipe_core_ft_create_outgoing(PURPLE_GC_TO_SIPE_CORE_PUBLIC);
+			sipe_core_ft_allocate(PURPLE_GC_TO_SIPE_CORE_PUBLIC);
 	PurpleXfer *xfer = create_xfer(purple_connection_get_account(gc),
 				       PURPLE_XFER_TYPE_SEND, who, ft);
 	if (xfer) {
@@ -380,22 +378,6 @@ void sipe_purple_ft_send_file(PurpleConnection *gc,
 		else
 			purple_xfer_request(xfer);
 	}
-}
-
-PurpleXfer *sipe_purple_ft_new_xfer(PurpleConnection *gc, const char *who)
-{
-	struct sipe_file_transfer *ft = NULL;
-	PurpleXfer *xfer = NULL;
-
-#if !PURPLE_VERSION_CHECK(3,0,0)
-	if (!PURPLE_CONNECTION_IS_VALID(gc)) {
-		return NULL;
-	}
-#endif
-
-	ft = sipe_core_ft_allocate(PURPLE_GC_TO_SIPE_CORE_PUBLIC);
-	return create_xfer(purple_connection_get_account(gc),
-			   PURPLE_XFER_TYPE_SEND, who, ft);
 }
 
 gboolean
