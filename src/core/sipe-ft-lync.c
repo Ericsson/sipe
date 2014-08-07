@@ -29,6 +29,10 @@
 #include <string.h>
 
 #include "sip-transport.h"
+#include "sipe-backend.h"
+#include "sipe-common.h"
+#include "sipe-core.h"
+#include "sipe-core-private.h"
 #include "sipe-ft-lync.h"
 #include "sipe-media.h"
 #include "sipe-mime.h"
@@ -43,6 +47,7 @@ sipe_file_transfer_lync_free(struct sipe_file_transfer_lync *ft_private)
 	g_free(ft_private->file_name);
 	g_free(ft_private->sdp);
 	g_free(ft_private->id);
+	g_free(ft_private->invitation);
 	g_free(ft_private);
 }
 
@@ -87,8 +92,6 @@ request_download_file(struct sipe_file_transfer_lync *ft_private)
 
 	g_free(body);
 
-	sipe_file_transfer_lync_free(ft_private);
-
 	return FALSE;
 }
 
@@ -132,13 +135,41 @@ mime_mixed_cb(gpointer user_data, const GSList *fields, const gchar *body,
 	}
 }
 
+static void
+ft_lync_incoming_init(struct sipe_file_transfer *ft,
+		      SIPE_UNUSED_PARAMETER const gchar *filename,
+		      SIPE_UNUSED_PARAMETER gsize size,
+		      const gchar *who)
+{
+	struct sipe_file_transfer_lync *ft_private =
+			(struct sipe_file_transfer_lync *)ft;
+
+	struct sip_session *session = NULL;
+
+	process_incoming_invite_call(ft_private->sipe_private,
+				     ft_private->invitation);
+
+	g_free(ft_private->invitation);
+	ft_private->invitation = NULL;
+
+	session = sipe_session_find_call(ft_private->sipe_private, who);
+	ft_private->dialog = session->dialogs->data;
+
+	g_timeout_add_seconds(10, (GSourceFunc)request_download_file, (gpointer)ft);
+}
+
+static void
+ft_lync_deallocate(struct sipe_file_transfer *ft)
+{
+	sipe_file_transfer_lync_free((struct sipe_file_transfer_lync *)ft);
+}
+
 void
 process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 				struct sipmsg *msg)
 {
 	struct sipe_file_transfer_lync *ft_private;
 	gchar *from;
-	struct sip_session *session;
 
 	ft_private = g_new0(struct sipe_file_transfer_lync, 1);
 	sipe_mime_parts_foreach(sipmsg_find_header(msg, "Content-Type"),
@@ -155,16 +186,17 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	msg->bodylen = strlen(msg->body);
 	ft_private->sdp = NULL;
 
-	process_incoming_invite_call(sipe_private, msg);
+	ft_private->sipe_private = sipe_private;
+	ft_private->invitation = sipmsg_copy(msg);
+
+	ft_private->public.init = ft_lync_incoming_init;
+	ft_private->public.deallocate = ft_lync_deallocate;
 
 	from = parse_from(sipmsg_find_header(msg, "From"));
-	session = sipe_session_find_call(sipe_private, from);
+	sipe_backend_ft_incoming(SIPE_CORE_PUBLIC,
+				 (struct sipe_file_transfer *)ft_private,
+				 from, ft_private->file_name, ft_private->file_size);
 	g_free(from);
-
-	ft_private->dialog = session->dialogs->data;
-	ft_private->sipe_private = sipe_private;
-
-	g_timeout_add_seconds(10, (GSourceFunc)request_download_file, (gpointer)ft_private);
 }
 
 /*
