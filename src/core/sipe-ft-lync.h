@@ -25,6 +25,8 @@ struct sipe_core_private;
 struct sipmsg;
 
 struct sipe_file_transfer_lync {
+	struct sipe_file_transfer public;
+
 	gchar *sdp;
 	gchar *file_name;
 	gchar *id;
@@ -32,6 +34,7 @@ struct sipe_file_transfer_lync {
 	guint request_id;
 
 	struct sipe_core_private *sipe_private;
+	struct sipmsg *invitation;
 	struct sip_dialog *dialog;
 };
 
