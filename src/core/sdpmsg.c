@@ -671,6 +671,7 @@ media_to_string(const struct sdpmsg *msg, const struct sdpmedia *media)
 	gchar *crypto = NULL;
 
 	gboolean uses_tcp_transport = FALSE;
+	gchar *extra_sdp = NULL;
 
 	if (media->port != 0) {
 		if (!sipe_strequal(msg->ip, media->ip)) {
@@ -716,11 +717,21 @@ media_to_string(const struct sdpmsg *msg, const struct sdpmedia *media)
 		}
 	}
 
+	if (sipe_strequal(media->name, "applicationsharing")) {
+		extra_sdp = g_strdup_printf("a=x-applicationsharing-session-id:1\r\n"
+					    "a=x-applicationsharing-role:viewer\r\n"
+					    "a=x-applicationsharing-media-type:rdp\r\n");        
+	} else if (sipe_strequal(media->name, "data")) {
+		extra_sdp = g_strdup_printf("a=mid:1\r\n"
+					    "a=recvonly\r\n");        
+	}
+
 	transport_profile = g_strdup_printf("%sRTP/%sAVP",
 					    uses_tcp_transport ? "TCP/" : "",
 					    media->encryption_active ? "S" : "");
 
 	media_str = g_strdup_printf("m=%s %d %s%s\r\n"
+				    "%s"
 				    "%s"
 				    "%s"
 				    "%s"
@@ -737,7 +748,8 @@ media_to_string(const struct sdpmsg *msg, const struct sdpmedia *media)
 				    tcp_setup_str ? tcp_setup_str : "",
 				    codecs_str ? codecs_str : "",
 				    attributes_str ? attributes_str : "",
-				    credentials ? credentials : "");
+				    credentials ? credentials : "",
+				    extra_sdp ? extra_sdp : "");
 
 	g_free(transport_profile);
 	g_free(media_conninfo);
@@ -749,6 +761,8 @@ media_to_string(const struct sdpmsg *msg, const struct sdpmedia *media)
 	g_free(attributes_str);
 	g_free(credentials);
 	g_free(crypto);
+	g_free(extra_sdp);
+
 
 	return media_str;
 }
