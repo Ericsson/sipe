@@ -247,6 +247,12 @@ on_candidate_pair_established_cb(PurpleMedia *media,
 	if (purple_media_candidate_get_protocol(local_candidate) != PURPLE_MEDIA_NETWORK_PROTOCOL_UDP) {
 		purple_media_set_send_rtcp_mux(media, sessionid, participant, TRUE);
 	}
+
+	if (call->candidate_pair_established_cb) {
+		struct sipe_backend_stream *stream =
+				sipe_backend_media_get_stream_by_id(call->backend_private, sessionid);
+		call->candidate_pair_established_cb(call, stream);
+	}
 }
 
 struct sipe_backend_media *
