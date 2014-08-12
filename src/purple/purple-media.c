@@ -694,11 +694,20 @@ duplicate_tcp_candidates(GList *candidates)
 }
 
 GList *
+sipe_backend_media_get_active_local_candidates(struct sipe_backend_media *media,
+					       struct sipe_backend_stream *stream)
+{
+	GList *candidates = purple_media_get_active_local_candidates(media->m,
+			stream->sessionid, stream->participant);
+	return duplicate_tcp_candidates(candidates);
+}
+
+GList *
 sipe_backend_media_get_active_local_candidates(struct sipe_media_call *media,
 					       struct sipe_media_stream *stream)
 {
-	GList *candidates = purple_media_get_active_local_candidates(
-			media->backend_private->m, stream->id, media->with);
+	GList *candidates = purple_media_get_active_remote_candidates(media->m,
+			stream->sessionid, stream->participant);
 	return duplicate_tcp_candidates(candidates);
 }
 
@@ -1023,10 +1032,9 @@ GList *
 sipe_backend_get_local_candidates(struct sipe_media_call *media,
 				  struct sipe_media_stream *stream)
 {
-	GList *candidates =
-			purple_media_get_local_candidates(media->backend_private->m,
-							  stream->id,
-							  media->with);
+	GList *candidates = purple_media_get_local_candidates(media->m,
+							      stream->sessionid,
+							      stream->participant);
 
 	candidates = duplicate_tcp_candidates(candidates);
 
