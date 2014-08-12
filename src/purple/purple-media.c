@@ -234,6 +234,19 @@ on_stream_info_cb(SIPE_UNUSED_PARAMETER PurpleMedia *media,
 	}
 }
 
+static void
+on_candidate_pair_established_cb(PurpleMedia *media,
+				 const gchar *sessionid,
+				 const gchar *participant,
+				 PurpleMediaCandidate *local_candidate,
+				 SIPE_UNUSED_PARAMETER PurpleMediaCandidate *remote_candidate,
+				 SIPE_UNUSED_PARAMETER struct sipe_media_call *call)
+{
+	if (purple_media_candidate_get_protocol(local_candidate) != PURPLE_MEDIA_NETWORK_PROTOCOL_UDP) {
+		purple_media_set_send_rtcp_mux(media, sessionid, participant, TRUE);
+	}
+}
+
 struct sipe_backend_media *
 sipe_backend_media_new(struct sipe_core_public *sipe_public,
 		       struct sipe_media_call *call,
@@ -260,6 +273,9 @@ sipe_backend_media_new(struct sipe_core_public *sipe_public,
 			 G_CALLBACK(on_error_cb), call);
 	g_signal_connect(G_OBJECT(media->m), "state-changed",
 			 G_CALLBACK(on_state_changed_cb), call);
+	g_signal_connect(G_OBJECT(media->m), "candidate-pair-established",
+			 G_CALLBACK(on_candidate_pair_established_cb), call);
+
 
 	/* On error, the pipeline is no longer in PLAYING state and libpurple
 	 * will not switch it back to PLAYING, preventing any more calls until
