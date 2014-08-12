@@ -136,6 +136,13 @@ mime_mixed_cb(gpointer user_data, const GSList *fields, const gchar *body,
 }
 
 static void
+candidate_pair_established_cb(struct sipe_media_call *call,
+			      SIPE_UNUSED_PARAMETER struct sipe_backend_stream *stream)
+{
+	request_download_file(sipe_media_get_file_transfer(call));
+}
+
+static void
 ft_lync_incoming_init(struct sipe_file_transfer *ft,
 		      SIPE_UNUSED_PARAMETER const gchar *filename,
 		      SIPE_UNUSED_PARAMETER gsize size,
@@ -145,23 +152,38 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 			(struct sipe_file_transfer_lync *)ft;
 
 	struct sip_session *session = NULL;
+	struct sipe_media_call *call = NULL;
 
 	process_incoming_invite_call(ft_private->sipe_private,
 				     ft_private->invitation);
+
+	call = (struct sipe_media_call *)ft_private->sipe_private->media_call;
+
+	if (call) {
+		sipe_backend_media_accept(call->backend_private, TRUE);
+		sipe_media_set_file_transfer(call, ft_private);
+		call->candidate_pair_established_cb =
+				candidate_pair_established_cb;
+	}
 
 	g_free(ft_private->invitation);
 	ft_private->invitation = NULL;
 
 	session = sipe_session_find_call(ft_private->sipe_private, who);
 	ft_private->dialog = session->dialogs->data;
-
-	g_timeout_add_seconds(10, (GSourceFunc)request_download_file, (gpointer)ft);
 }
 
 static void
 ft_lync_deallocate(struct sipe_file_transfer *ft)
 {
-	sipe_file_transfer_lync_free((struct sipe_file_transfer_lync *)ft);
+	struct sipe_file_transfer_lync *ft_private =
+			(struct sipe_file_transfer_lync *) ft;
+	struct sipe_media_call *call =
+			(struct sipe_media_call *)ft_private->sipe_private->media_call;
+	if (call) {
+		sipe_backend_media_hangup(call->backend_private, TRUE);
+	}
+	sipe_file_transfer_lync_free(ft_private);
 }
 
 void
