@@ -65,6 +65,9 @@ struct sipe_media_call_private {
 
 	struct sdpmsg			*smsg;
 	GSList				*failed_media;
+
+	/* Non-NULL when the call represents a Lync 2010 file transfer. */
+	struct sipe_file_transfer_lync	*file_transfer;
 };
 #define SIPE_MEDIA_CALL         ((struct sipe_media_call *) call_private)
 #define SIPE_MEDIA_CALL_PRIVATE ((struct sipe_media_call_private *) call)
@@ -1792,6 +1795,19 @@ sipe_media_get_sip_dialog(struct sipe_media_call *call)
 	}
 
 	return session->dialogs->data;
+}
+
+void
+sipe_media_set_file_transfer(struct sipe_media_call *call,
+			     struct sipe_file_transfer_lync *ft)
+{
+	SIPE_MEDIA_CALL_PRIVATE->file_transfer = ft;
+}
+
+struct sipe_file_transfer_lync *
+sipe_media_get_file_transfer(struct sipe_media_call *call)
+{
+	return SIPE_MEDIA_CALL_PRIVATE->file_transfer;
 }
 
 static void
