@@ -23,6 +23,7 @@
 /* Forward declarations */
 struct sipmsg;
 struct sipe_core_private;
+struct sipe_file_transfer_lync;
 struct sipe_media_call_private;
 
 /**
@@ -88,6 +89,27 @@ gboolean is_media_session_msg(struct sipe_media_call_private *call_private,
  * @param sipe_private (in) SIPE core data.
  */
 void sipe_media_get_av_edge_credentials(struct sipe_core_private *sipe_private);
+
+/**
+ * Associates a file transfer structure with the media call.
+ *
+ * @param call (in) media call data
+ * @param ft (in) a sipe_file_transfer_lync structure.
+ */
+void
+sipe_media_set_file_transfer(struct sipe_media_call *call,
+			     struct sipe_file_transfer_lync *ft);
+
+/**
+ * Returns a file transfer structure associated with this media call.
+ * If the call doesn't represent a file transfer, the obtained value is NULL.
+ *
+ * @param call (in) media call data
+ *
+ * @return a sipe_file_transfer_lync structure.
+ */
+struct sipe_file_transfer_lync *
+sipe_media_get_file_transfer(struct sipe_media_call *call);
 
 /**
  * Deallocates the opaque list of media relay structures
