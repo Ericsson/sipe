@@ -33,6 +33,8 @@ struct sipe_file_transfer_lync {
 	gsize file_size;
 	guint request_id;
 
+	guint expecting_len;
+
 	struct sipe_core_private *sipe_private;
 	struct sipmsg *invitation;
 	struct sip_dialog *dialog;
