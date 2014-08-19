@@ -438,8 +438,48 @@ sipe_backend_media_relays_free(struct sipe_backend_media_relays *media_relays)
 #endif
 }
 
+static void
+stream_readable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
+		 SIPE_UNUSED_PARAMETER PurpleMedia *media,
+		 const gchar *sessionid,
+		 SIPE_UNUSED_PARAMETER const gchar *participant,
+		 gpointer user_data)
+{
+	struct sipe_media_call *call = (struct sipe_media_call *)user_data;
+	struct sipe_backend_stream *stream;
+
+	SIPE_DEBUG_INFO_NOFORMAT("Stream readable");
+
+	stream = sipe_backend_media_get_stream_by_id(call->backend_private, sessionid);
+
+	if (stream && call->read_cb) {
+		call->read_cb(call, stream);
+	}
+}
+
+gint
+sipe_backend_media_read(struct sipe_backend_media *media,
+			struct sipe_backend_stream *stream,
+			guint8 *buffer, guint buffer_len, gboolean blocking)
+{
+	return purple_media_manager_receive_application_data(
+			purple_media_manager_get(), media->m, stream->sessionid,
+			stream->participant, buffer, buffer_len, blocking);
+}
+
+static void
+stream_writable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
+		 SIPE_UNUSED_PARAMETER PurpleMedia *media,
+		 SIPE_UNUSED_PARAMETER const gchar *session_id,
+		 SIPE_UNUSED_PARAMETER const gchar *participant,
+		 SIPE_UNUSED_PARAMETER gboolean writable,
+		 SIPE_UNUSED_PARAMETER gpointer user_data)
+{
+	SIPE_DEBUG_INFO("Stream %swritable", writable ? "" : "not ");
+}
+
 struct sipe_backend_stream *
-sipe_backend_media_add_stream(struct sipe_backend_media *media,
+sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      const gchar *id,
 			      const gchar *participant,
 			      SipeMediaType type,
@@ -447,8 +487,12 @@ sipe_backend_media_add_stream(struct sipe_backend_media *media,
 			      gboolean initiator,
 			      struct sipe_backend_media_relays *media_relays)
 {
+	struct sipe_backend_media *media = call->backend_private;
 	struct sipe_backend_stream *stream = NULL;
 	PurpleMediaSessionType prpl_type = sipe_media_to_purple(type);
+	PurpleMediaAppDataCallbacks callbacks = {
+			stream_readable_cb, stream_writable_cb
+	};
 	// Preallocate enough space for all potential parameters to fit.
 	GParameter *params = g_new0(GParameter, 5);
 	guint params_cnt = 0;
@@ -492,6 +536,13 @@ sipe_backend_media_add_stream(struct sipe_backend_media *media,
 	}
 
 	ensure_codecs_conf();
+
+	if (type == SIPE_MEDIA_APPLICATION) {
+		purple_media_manager_set_application_data_callbacks(
+				purple_media_manager_get(),
+				media->m, id, participant, &callbacks,
+				call, NULL);
+	}
 
 	if (purple_media_add_stream(media->m, id, participant, prpl_type,
 				    initiator, transmitter, params_cnt,

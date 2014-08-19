@@ -80,7 +80,7 @@ sipe_backend_media_relays_free(struct sipe_backend_media_relays *media_relays)
 }
 
 struct sipe_backend_stream *
-sipe_backend_media_add_stream(struct sipe_backend_media *media,
+sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      const gchar *id,
 			      const gchar *participant,
 			      SipeMediaType type,
@@ -373,6 +373,14 @@ sipe_backend_media_hangup(struct sipe_backend_media *media, gboolean local)
 
 void
 sipe_backend_media_reject(struct sipe_backend_media *media, gboolean local)
+{
+	_NIF();
+}
+
+gint
+sipe_backend_media_read(struct sipe_backend_media *media,
+			struct sipe_backend_stream *stream,
+			guint8 *buffer, guint buffer_len, gboolean blocking)
 {
 	_NIF();
 }
