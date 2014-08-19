@@ -1123,7 +1123,6 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 	struct sipe_media_stream_private *stream_private;
 	struct sipe_backend_media_stream *backend_stream;
 	struct sipe_backend_media_relays *backend_media_relays;
-	struct sipe_backend_media *backend_media;
 	guchar *key;
 	int i;
 
@@ -1132,31 +1131,9 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 						sipe_private->media_relay_username,
 						sipe_private->media_relay_password);
 
-	switch (type) {
-		case SIPE_MEDIA_AUDIO:
-			min_port = sipe_private->min_audio_port;
-			max_port = sipe_private->max_audio_port;
-			break;
-		case SIPE_MEDIA_VIDEO:
-			min_port = sipe_private->min_video_port;
-			max_port = sipe_private->max_audio_port;
-			break;
-		case SIPE_MEDIA_APPLICATION:
-			if (sipe_strequal(id, "data")) {
-				min_port = sipe_private->min_filetransfer_port;
-				max_port = sipe_private->max_filetransfer_port;
-			} else if (sipe_strequal(id, "applicationsharing")) {
-				min_port = sipe_private->min_appsharing_port;
-				max_port = sipe_private->max_appsharing_port;
-			}
-			break;
-	}
-
-	backend_stream = sipe_backend_media_add_stream(SIPE_MEDIA_CALL,
-						       id, call->with, type,
-						       ice_version, initiator,
-						       backend_media_relays,
-						       min_port, max_port);
+	stream = sipe_backend_media_add_stream(&sipe_private->media_call->public,
+					       id, with, type, ice_version,
+					       initiator, backend_media_relays);
 
 	key = g_new0(guchar, 30);
 	for (i = 0; i != 30; ++i) {

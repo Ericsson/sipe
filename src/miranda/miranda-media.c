@@ -75,7 +75,7 @@ sipe_backend_media_relays_free(struct sipe_backend_media_relays *media_relays)
 	_NIF();
 }
 
-struct sipe_backend_media_stream *
+struct sipe_backend_stream *
 sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      const gchar *id,
 			      const gchar *participant,
@@ -375,18 +375,9 @@ sipe_backend_media_reject(struct sipe_backend_media *media, gboolean local)
 }
 
 gint
-sipe_backend_media_read(struct sipe_media_call *media,
-			struct sipe_media_stream *stream,
+sipe_backend_media_read(struct sipe_backend_media *media,
+			struct sipe_backend_stream *stream,
 			guint8 *buffer, guint buffer_len, gboolean blocking)
-{
-	_NIF();
-}
-
-gint
-sipe_backend_media_write(struct sipe_media_call *media,
-			 struct sipe_media_stream *stream,
-			 guint8 *buffer, guint buffer_len,
-			 gboolean blocking)
 {
 	_NIF();
 }

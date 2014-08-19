@@ -136,22 +136,6 @@ static gboolean end_transfer_cb(gpointer data)
 	return FALSE;
 }
 
-gssize sipe_backend_ft_read_file(struct sipe_file_transfer *ft, guchar *data,
-				 gsize size)
-{
-	PurpleXfer *xfer = FT_TO_PURPLE_XFER;
-	gssize bytes_read = purple_xfer_read_file(xfer, data, size);
-	purple_xfer_update_progress(xfer);
-
-	if (purple_xfer_get_bytes_remaining(xfer) == 0 &&
-	    !purple_xfer_is_completed(xfer)) {
-		purple_xfer_set_completed(xfer, TRUE);
-		g_timeout_add_seconds(0, end_transfer_cb, (gpointer)xfer);
-	}
-
-	return bytes_read;
-}
-
 gssize sipe_backend_ft_write_file(struct sipe_file_transfer *ft,
 				  const guchar *data,
 				  gsize size)
@@ -164,11 +148,6 @@ gssize sipe_backend_ft_write_file(struct sipe_file_transfer *ft,
 		g_timeout_add_seconds(0, end_transfer_cb, (gpointer)xfer);
 	}
 	return bytes_written;
-}
-
-gboolean sipe_backend_ft_is_completed(struct sipe_file_transfer *ft)
-{
-	return purple_xfer_is_completed(FT_TO_PURPLE_XFER);
 }
 
 void sipe_backend_ft_cancel_local(struct sipe_file_transfer *ft)

@@ -143,6 +143,53 @@ candidate_pair_established_cb(struct sipe_media_call *call,
 }
 
 static void
+read_cb(struct sipe_media_call *call, struct sipe_backend_stream *backend_stream)
+{
+	struct sipe_file_transfer_lync *ft_data =
+			sipe_media_get_file_transfer(call);
+	guint8 buffer[0x800];
+
+	if (ft_data->expecting_len == 0) {
+		guint8 type;
+		guint16 size;
+
+		sipe_backend_media_read(call->backend_private, backend_stream,
+					&type, sizeof (guint8), TRUE);
+		sipe_backend_media_read(call->backend_private, backend_stream,
+					(guint8 *)&size, sizeof (guint16), TRUE);
+		size = GUINT16_FROM_BE(size);
+
+		if (type == 0x01) {
+			sipe_backend_media_read(call->backend_private, backend_stream,
+						buffer, size, TRUE);
+			buffer[size] = 0;
+			SIPE_DEBUG_INFO("Received new stream for requestId : %s", buffer);
+			sipe_backend_ft_start(&ft_data->public, NULL, NULL, 0);
+		} else if (type == 0x02) {
+			sipe_backend_media_read(call->backend_private, backend_stream,
+						buffer, size, TRUE);
+			buffer[size] = 0;
+
+			SIPE_DEBUG_INFO("Received end of stream for requestId : %s", buffer);
+			// TODO: finish transfer;
+		} else if (type == 0x00) {
+			SIPE_DEBUG_INFO("Received new data chunk of size %d", size);
+			ft_data->expecting_len = size;
+		}
+		/* Readable will be called again so we can read the rest of
+		 * the buffer or the chunk. */
+	} else {
+		guint len = MIN(ft_data->expecting_len, sizeof (buffer));
+		len = sipe_backend_media_read(call->backend_private,
+				backend_stream, buffer, len, FALSE);
+		ft_data->expecting_len -= len;
+		SIPE_DEBUG_INFO("Read %d bytes. %d remaining in chunk",
+				len, ft_data->expecting_len);
+		sipe_backend_ft_write_file(&ft_data->public, buffer, len);
+	}
+}
+
+static void
 ft_lync_incoming_init(struct sipe_file_transfer *ft,
 		      SIPE_UNUSED_PARAMETER const gchar *filename,
 		      SIPE_UNUSED_PARAMETER gsize size,
@@ -164,6 +211,7 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 		sipe_media_set_file_transfer(call, ft_private);
 		call->candidate_pair_established_cb =
 				candidate_pair_established_cb;
+		call->read_cb = read_cb;
 	}
 
 	g_free(ft_private->invitation);

@@ -129,7 +129,6 @@ void sipe_backend_ft_deallocate(SIPE_UNUSED_PARAMETER struct sipe_file_transfer 
 gssize sipe_backend_ft_write_file(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft,
 				  SIPE_UNUSED_PARAMETER const guchar *data,
 				  SIPE_UNUSED_PARAMETER gsize size) {}
-gboolean sipe_backend_ft_is_completed(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft) {}
 void sipe_backend_ft_cancel_local(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft) {}
 void sipe_backend_ft_cancel_remote(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft) {}
 void sipe_backend_ft_incoming(SIPE_UNUSED_PARAMETER struct sipe_core_public *sipe_public,
@@ -182,20 +181,20 @@ struct sipe_backend_media_relays * sipe_backend_media_relays_convert(SIPE_UNUSED
 								     SIPE_UNUSED_PARAMETER gchar *username,
 								     SIPE_UNUSED_PARAMETER gchar *password) { return(NULL); }
 void sipe_backend_media_relays_free(SIPE_UNUSED_PARAMETER struct sipe_backend_media_relays *media_relays) {}
-struct sipe_backend_media_stream *sipe_backend_media_add_stream(SIPE_UNUSED_PARAMETER struct sipe_media_call *call,
-								SIPE_UNUSED_PARAMETER const gchar *id,
-								SIPE_UNUSED_PARAMETER const gchar *participant,
-								SIPE_UNUSED_PARAMETER SipeMediaType type,
-								SIPE_UNUSED_PARAMETER SipeIceVersion ice_version,
-								SIPE_UNUSED_PARAMETER gboolean initiator,
-								SIPE_UNUSED_PARAMETER struct sipe_backend_media_relays *media_relays,
-								SIPE_UNUSED_PARAMETER guint min_port,
-								SIPE_UNUSED_PARAMETER guint max_port) { return(NULL); }
-void sipe_backend_media_stream_end(SIPE_UNUSED_PARAMETER struct sipe_media_call *media,
-				   SIPE_UNUSED_PARAMETER struct sipe_media_stream *stream) {}
-void sipe_backend_media_stream_free(SIPE_UNUSED_PARAMETER struct sipe_backend_media_stream *stream) {}
-void sipe_backend_media_add_remote_candidates(SIPE_UNUSED_PARAMETER struct sipe_media_call *media,
-					      SIPE_UNUSED_PARAMETER struct sipe_media_stream *stream,
+struct sipe_backend_stream *sipe_backend_media_add_stream(SIPE_UNUSED_PARAMETER struct sipe_media_call *call,
+							  SIPE_UNUSED_PARAMETER const gchar *id,
+							  SIPE_UNUSED_PARAMETER const gchar *participant,
+							  SIPE_UNUSED_PARAMETER SipeMediaType type,
+							  SIPE_UNUSED_PARAMETER SipeIceVersion ice_version,
+							  SIPE_UNUSED_PARAMETER gboolean initiator,
+							  SIPE_UNUSED_PARAMETER struct sipe_backend_media_relays *media_relays) { return(NULL); }
+void sipe_backend_media_remove_stream(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media,
+				      SIPE_UNUSED_PARAMETER struct sipe_backend_stream *stream) {}
+GSList *sipe_backend_media_get_streams(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media) { return(NULL); }
+struct sipe_backend_stream *sipe_backend_media_get_stream_by_id(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media,
+								SIPE_UNUSED_PARAMETER const gchar *id) { return(NULL); }
+void sipe_backend_media_add_remote_candidates(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media,
+					      SIPE_UNUSED_PARAMETER struct sipe_backend_stream *stream,
 					      SIPE_UNUSED_PARAMETER GList *candidates) {}
 gboolean sipe_backend_media_is_initiator(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media,
 					 SIPE_UNUSED_PARAMETER struct sipe_backend_stream *stream) { return(FALSE); }
@@ -265,16 +264,11 @@ void sipe_backend_media_hangup(SIPE_UNUSED_PARAMETER struct sipe_backend_media *
 			       SIPE_UNUSED_PARAMETER gboolean local) {}
 void sipe_backend_media_reject(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media,
 			       SIPE_UNUSED_PARAMETER gboolean local) {}
-gint sipe_backend_media_read(SIPE_UNUSED_PARAMETER struct sipe_media_call *media,
-			     SIPE_UNUSED_PARAMETER struct sipe_media_stream *stream,
+gint sipe_backend_media_read(SIPE_UNUSED_PARAMETER struct sipe_backend_media *media,
+			     SIPE_UNUSED_PARAMETER struct sipe_backend_stream *stream,
 			     SIPE_UNUSED_PARAMETER guint8 *buffer,
 			     SIPE_UNUSED_PARAMETER guint buffer_len,
 			     SIPE_UNUSED_PARAMETER gboolean blocking) {}
-gint sipe_backend_media_write(SIPE_UNUSED_PARAMETER struct sipe_media_call *media,
-			      SIPE_UNUSED_PARAMETER struct sipe_media_stream *stream,
-			      SIPE_UNUSED_PARAMETER guint8 *buffer,
-			      SIPE_UNUSED_PARAMETER guint buffer_len,
-			      SIPE_UNUSED_PARAMETER gboolean blocking) {}
 #endif
 
 /** NETWORK ******************************************************************/
