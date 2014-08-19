@@ -914,7 +914,6 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 {
 	struct sipe_backend_stream *stream;
 	struct sipe_backend_media_relays *backend_media_relays;
-	struct sipe_backend_media *backend_media;
 	guchar *key;
 	int i;
 
@@ -923,10 +922,9 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 						sipe_private->media_relay_username,
 						sipe_private->media_relay_password);
 
-	backend_media = sipe_private->media_call->public.backend_private;
-	stream = sipe_backend_media_add_stream(backend_media, id, with, type,
-					       ice_version, initiator,
-					       backend_media_relays);
+	stream = sipe_backend_media_add_stream(&sipe_private->media_call->public,
+					       id, with, type, ice_version,
+					       initiator, backend_media_relays);
 
 	key = g_new0(guchar, 30);
 	for (i = 0; i != 30; ++i) {

@@ -130,6 +130,26 @@ gssize sipe_backend_ft_write(struct sipe_file_transfer *ft,
 	return bytes_written;
 }
 
+static gboolean end_transfer_cb(gpointer data)
+{
+	purple_xfer_end((PurpleXfer *)data);
+	return FALSE;
+}
+
+gssize sipe_backend_ft_write_file(struct sipe_file_transfer *ft,
+				  const guchar *data,
+				  gsize size)
+{
+	PurpleXfer *xfer = FT_TO_PURPLE_XFER;
+	gssize bytes_written = purple_xfer_write_file(xfer, data, size);
+	purple_xfer_update_progress(xfer);
+	if (purple_xfer_get_bytes_remaining(xfer) == 0) {
+		purple_xfer_set_completed(xfer, TRUE);
+		g_timeout_add_seconds(0, end_transfer_cb, (gpointer)xfer);
+	}
+	return bytes_written;
+}
+
 void sipe_backend_ft_cancel_local(struct sipe_file_transfer *ft)
 {
 	purple_xfer_cancel_local(FT_TO_PURPLE_XFER);
