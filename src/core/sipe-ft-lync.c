@@ -221,6 +221,39 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 	ft_private->dialog = session->dialogs->data;
 }
 
+static gboolean
+ft_lync_incoming_end(struct sipe_file_transfer *ft)
+{
+	struct sipe_file_transfer_lync *ft_private =
+			(struct sipe_file_transfer_lync *)ft;
+
+	static const gchar *FILETRANSFER_PROGRESS =
+			"<notify xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" notifyId=\"%d\">"
+				"<fileTransferProgress>"
+					"<transferId>%d</transferId>"
+					"<bytesReceived>"
+						"<from>0</from>"
+						"<to>%d</to>"
+					"</bytesReceived>"
+				"</fileTransferProgress>"
+			"</notify>";
+
+	gchar *body = g_strdup_printf(FILETRANSFER_PROGRESS,
+			       rand(),
+			       ft_private->request_id + 1,
+			       ft_private->file_size - 1);
+
+	sip_transport_info(ft_private->sipe_private,
+			   "Content-Type: application/ms-filetransfer+xml\r\n",
+			   body,
+			   ft_private->dialog,
+			   NULL);
+
+	g_free(body);
+
+	return TRUE;
+}
+
 static void
 ft_lync_deallocate(struct sipe_file_transfer *ft)
 {
@@ -253,6 +286,7 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	ft_private->invitation = sipmsg_copy(msg);
 
 	ft_private->public.init = ft_lync_incoming_init;
+	ft_private->public.end = ft_lync_incoming_end;
 	ft_private->public.deallocate = ft_lync_deallocate;
 
 	from = parse_from(sipmsg_find_header(msg, "From"));
