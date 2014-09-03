@@ -157,6 +157,11 @@ void process_incoming_info(struct sipe_core_private *sipe_private,
 		process_incoming_info_conversation(sipe_private, msg);
 		return;
 	}
+	else if (g_str_has_prefix(contenttype, "application/ms-filetransfer+xml"))
+	{
+		sip_transport_response(sipe_private, msg, 200, "OK", NULL);
+		return;
+	}
 
 	from = parse_from(sipmsg_find_header(msg, "From"));
 	session = sipe_session_find_chat_or_im(sipe_private, callid, from);
