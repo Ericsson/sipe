@@ -33,6 +33,7 @@
 #include "sipe-common.h"
 #include "sipe-core.h"
 #include "sipe-core-private.h"
+#include "sipe-dialog.h"
 #include "sipe-ft-lync.h"
 #include "sipe-media.h"
 #include "sipe-mime.h"
@@ -221,6 +222,34 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 	ft_private->dialog = session->dialogs->data;
 }
 
+static void
+ft_lync_incoming_cancelled(struct sipe_file_transfer *ft)
+{
+	struct sipe_file_transfer_lync *ft_private =
+			(struct sipe_file_transfer_lync *)ft;
+	gchar *body;
+	struct sip_dialog *dialog;
+
+	static const gchar *DECLINE_RESPONSE =
+		"<response xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\" code=\"failure\" reason=\"requestDeclined\"/>";
+
+	body = g_strdup_printf(DECLINE_RESPONSE, ft_private->request_id);
+
+	dialog = g_new0(struct sip_dialog, 1);
+	dialog->with = parse_from(sipmsg_find_header(ft_private->invitation, "From"));
+	dialog->callid = g_strdup(sipmsg_find_header(ft_private->invitation, "Call-ID"));
+	sipe_dialog_parse(dialog, ft_private->invitation, FALSE);
+
+	sip_transport_info(ft_private->sipe_private,
+			   "Content-Type: application/ms-filetransfer+xml\r\n",
+			   body,
+			   dialog,
+			   NULL);
+
+	sipe_dialog_free(dialog);
+	g_free(body);
+}
+
 static gboolean
 ft_lync_incoming_end(struct sipe_file_transfer *ft)
 {
@@ -286,6 +315,7 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	ft_private->invitation = sipmsg_copy(msg);
 
 	ft_private->public.init = ft_lync_incoming_init;
+	ft_private->public.cancelled = ft_lync_incoming_cancelled;
 	ft_private->public.end = ft_lync_incoming_end;
 	ft_private->public.deallocate = ft_lync_deallocate;
 
