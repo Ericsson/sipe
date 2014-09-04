@@ -22,9 +22,11 @@
 
 #include <glib.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sip-transport.h"
 #include "sipe-ft-lync.h"
+#include "sipe-media.h"
 #include "sipe-mime.h"
 #include "sipe-utils.h"
 #include "sipe-xml.h"
@@ -90,6 +92,13 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 
 	if (!ft_private->file_name || !ft_private->file_size || !ft_private->sdp) {
 		sip_transport_response(sipe_private, msg, 488, "Not Acceptable Here", NULL);
+	} else {
+		g_free(msg->body);
+		msg->body = ft_private->sdp;
+		msg->bodylen = strlen(msg->body);
+		ft_private->sdp = NULL;
+
+		process_incoming_invite_call(sipe_private, msg);
 	}
 
 	sipe_file_transfer_lync_free(ft_private);
