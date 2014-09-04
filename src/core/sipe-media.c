@@ -372,6 +372,8 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 		type = SIPE_MEDIA_AUDIO;
 	else if (sipe_strequal(sdpmedia->name, "video"))
 		type = SIPE_MEDIA_VIDEO;
+	else if (sipe_strequal(media->name, "data"))
+		type = SIPE_MEDIA_APPLICATION;
 	else if (sipe_strequal(media->name, "applicationsharing"))
 		type = SIPE_MEDIA_APPLICATION;
 	else {
@@ -1428,6 +1430,8 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 				type = SIPE_MEDIA_AUDIO;
 			else if (sipe_strequal(id, "video"))
 				type = SIPE_MEDIA_VIDEO;
+			else if (sipe_strequal(id, "data"))
+				type = SIPE_MEDIA_APPLICATION;
 			else if (sipe_strequal(id, "applicationsharing"))
 				type = SIPE_MEDIA_APPLICATION;
 			else
