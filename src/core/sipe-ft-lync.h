@@ -24,8 +24,13 @@
 struct sipe_core_private;
 struct sipmsg;
 
+struct sipe_file_transfer_lync {
+	gchar *sdp;
+	gchar *file_name;
+	gchar *id;
+	gsize file_size;
+	guint request_id;
+};
+
 void process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 				     struct sipmsg *msg);
-
-void process_incoming_info_ft_lync(struct sipe_core_private *sipe_private,
-				   struct sipmsg *msg);
