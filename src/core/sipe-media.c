@@ -596,7 +596,7 @@ update_remote_media(struct sipe_media_call_private* call_private,
 		backend_codecs = g_list_append(backend_codecs, codec);
 	}
 
-	if (media->encryption_key && media->encryption_active &&
+	if (media->encryption_key /*&& media->encryption_active*/ &&
 	    !g_hash_table_lookup(call_private->stream_decryption_keys, media->name)) {
 		guchar *encryption_key =
 				g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
