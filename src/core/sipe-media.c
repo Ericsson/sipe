@@ -1151,7 +1151,8 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 		gchar *with = parse_from(sipmsg_find_header(msg, "From"));
 		struct sip_session *session;
 
-		if (strstr(msg->body, "m=data")) {
+		if (strstr(msg->body, "m=data") ||
+		    strstr(msg->body, "m=applicationsharing")) {
 			call_private = sipe_data_session_new(sipe_private, with, FALSE, smsg->ice_version);
 		} else {
 			call_private = sipe_media_call_new(sipe_private, with, FALSE, smsg->ice_version);
