@@ -382,6 +382,15 @@ sipe_backend_media_read(struct sipe_backend_media *media,
 	_NIF();
 }
 
+gint
+sipe_backend_media_write(struct sipe_backend_media *media,
+			 struct sipe_backend_stream *stream,
+			 guint8 *buffer, guint buffer_len,
+			 gboolean blocking)
+{
+	_NIF();
+}
+
 /*
   Local Variables:
   mode: c
