@@ -383,6 +383,8 @@ struct sipe_media_call {
 	void (*error_cb)(struct sipe_media_call *, gchar *message);
 
 	void (*read_cb)(struct sipe_media_call *, struct sipe_backend_stream *);
+	void (*writable_cb)(struct sipe_media_call *,
+			    struct sipe_backend_stream *, gboolean writable);
 };
 
 struct sipe_media_relay {
