@@ -140,6 +140,9 @@ writable_cb(struct sipe_media_call *call,
 		/* We need to send the data after the reinvite, or need to set the encryption params after the first invite*/
 		foobar.media = call->backend_private;
 		foobar.stream = backend_stream;
+
+		g_spawn_command_line_async("xfreerdp /v:/tmp/sipe-appshare-socket /sec:rdp", &error);
+		g_assert_no_error(error);
 	}
 }
 
