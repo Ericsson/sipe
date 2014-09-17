@@ -471,13 +471,23 @@ sipe_backend_media_read(struct sipe_backend_media *media,
 
 static void
 stream_writable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
-		 SIPE_UNUSED_PARAMETER PurpleMedia *media,
-		 SIPE_UNUSED_PARAMETER const gchar *session_id,
-		 SIPE_UNUSED_PARAMETER const gchar *participant,
-		 SIPE_UNUSED_PARAMETER gboolean writable,
-		 SIPE_UNUSED_PARAMETER gpointer user_data)
+		   SIPE_UNUSED_PARAMETER PurpleMedia *media,
+		   const gchar *session_id,
+		   SIPE_UNUSED_PARAMETER const gchar *participant,
+		   gboolean writable,
+		   gpointer user_data)
 {
+	struct sipe_media_call *call = (struct sipe_media_call *)user_data;
+	struct sipe_backend_stream *stream;
+
 	SIPE_DEBUG_INFO("Stream %swritable", writable ? "" : "not ");
+
+	stream = sipe_backend_media_get_stream_by_id(call->backend_private,
+						     session_id);
+
+	if (stream && call->writable_cb) {
+		call->writable_cb(call, stream, writable);
+	}
 }
 
 struct sipe_backend_stream *
