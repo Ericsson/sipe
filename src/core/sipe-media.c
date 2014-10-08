@@ -55,8 +55,6 @@ struct sipe_media_call_private {
 	/* private part starts here */
 	struct sipe_core_private	*sipe_private;
 
-	GSList				*streams;
-
 	struct sipmsg			*invitation;
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
@@ -124,13 +122,8 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 {
 	if (call_private) {
 		struct sip_session *session;
-
-		while (call_private->streams) {
-			remove_stream(SIPE_MEDIA_CALL,
-				      call_private->streams->data);
-		}
-
-		sipe_backend_media_free(SIPE_MEDIA_CALL->backend_private);
+		sipe_backend_media_free(call_private->public.backend_private);
+		g_free(call_private->public.with);
 
 		session = sipe_session_find_call(call_private->sipe_private,
 						 call_private->public.with);
@@ -147,7 +140,6 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 		sdpmsg_free(call_private->smsg);
 		sipe_utils_slist_free_full(call_private->failed_media,
 				  (GDestroyNotify)sdpmedia_free);
-		g_free(call_private->with);
 		g_hash_table_destroy(call_private->stream_encryption_keys);
 		g_hash_table_destroy(call_private->stream_decryption_keys);
 		g_free(call_private);
@@ -532,8 +524,8 @@ sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 	struct sipe_backend_media *backend_media = call_private->public.backend_private;
 	struct sdpmsg *msg = g_new0(struct sdpmsg, 1);
 	GSList *streams = sipe_backend_media_get_streams(backend_media);
-	struct sip_session *session =
-			sipe_session_find_call(sipe_private, call_private->with);
+	struct sip_session *session = sipe_session_find_call(sipe_private,
+			call_private->public.with);
 	struct sip_dialog *dialog = session->dialogs->data;
 
 	const gchar *encryption = NULL;
@@ -602,6 +594,9 @@ sipe_invite_call(struct sipe_core_private *sipe_private, TransCallback tc)
 
 	session = sipe_session_find_call(sipe_private, call_private->public.with);
 	dialog = session->dialogs->data;
+	add_2007_fallback = dialog->cseq == 0 &&
+		call_private->ice_version == SIPE_ICE_RFC_5245 &&
+		!sipe_strequal(call_private->public.with, sipe_private->test_call_bot_uri);
 
 	contact = get_contact(sipe_private);
 
@@ -1204,8 +1199,16 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 	call_private = sipe_media_call_new_outgoing(sipe_private, with, TRUE,
 						    ice_version);
 
-	if (!sipe_media_stream_add(SIPE_MEDIA_CALL, "audio", SIPE_MEDIA_AUDIO,
-				   call_private->ice_version,
+	session = sipe_session_add_call(sipe_private, with);
+	dialog = sipe_dialog_add(session);
+	dialog->callid = gencallid();
+	dialog->with = g_strdup(session->with);
+	dialog->ourtag = gentag();
+
+	sipe_private->media_call->public.with = g_strdup(session->with);
+
+	if (!sipe_media_stream_add(sipe_private, "audio", with, SIPE_MEDIA_AUDIO,
+				   sipe_private->media_call->ice_version,
 				   TRUE)) {
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
 					  _("Error occured"),
@@ -1276,8 +1279,12 @@ void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 
 	g_free(av_uri);
 
-	if (!sipe_media_stream_add(SIPE_MEDIA_CALL, "audio", SIPE_MEDIA_AUDIO,
-				   call_private->ice_version, TRUE)) {
+	sipe_private->media_call->public.with = g_strdup(session->with);
+
+	if (!sipe_media_stream_add(sipe_private, "audio", dialog->with,
+				   SIPE_MEDIA_AUDIO,
+				   sipe_private->media_call->ice_version,
+				   TRUE)) {
 		sipe_backend_notify_error(sipe_public,
 					  _("Error occured"),
 					  _("Error creating audio stream"));
@@ -1402,6 +1409,7 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 		sipe_media_dialog_init(session, msg);
 
 		call_private->public.with = g_strdup(session->with);
+		sipe_private->media_call = call_private;
 		g_free(with);
 	}
 
@@ -1566,7 +1574,8 @@ maybe_retry_call_with_ice_version(struct sipe_core_private *sipe_private,
 	if (call_private->ice_version != ice_version &&
 	    sip_transaction_cseq(trans) == 1) {
 		gchar *with = g_strdup(call_private->public.with);
-		gboolean with_video = sipe_core_media_get_stream_by_id(SIPE_MEDIA_CALL, "video") != NULL;
+		struct sipe_backend_media *backend_private = call_private->public.backend_private;
+		gboolean with_video = sipe_backend_media_get_stream_by_id(backend_private, "video") != NULL;
 
 		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 		SIPE_DEBUG_INFO("Retrying call with ICEv%d.",
@@ -1748,31 +1757,6 @@ void sipe_media_handle_going_offline(struct sipe_media_call_private *call_privat
 gboolean sipe_media_is_conference_call(struct sipe_media_call_private *call_private)
 {
 	return g_strstr_len(call_private->public.with, -1, "app:conf:audio-video:") != NULL;
-}
-
-struct sipe_core_private *
-sipe_media_get_sipe_core_private(struct sipe_media_call *call)
-{
-	g_return_val_if_fail(call, NULL);
-
-	return SIPE_MEDIA_CALL_PRIVATE->sipe_private;
-}
-
-struct sip_dialog *
-sipe_media_get_sip_dialog(struct sipe_media_call *call)
-{
-	struct sip_session *session;
-
-	g_return_val_if_fail(call, NULL);
-
-	session = sipe_session_find_call(SIPE_MEDIA_CALL_PRIVATE->sipe_private,
-					 call->with);
-
-	if (!session || !session->dialogs) {
-		return NULL;
-	}
-
-	return session->dialogs->data;
 }
 
 void
