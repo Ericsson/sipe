@@ -137,13 +137,13 @@ mime_mixed_cb(gpointer user_data, const GSList *fields, const gchar *body,
 
 static void
 candidate_pair_established_cb(struct sipe_media_call *call,
-			      SIPE_UNUSED_PARAMETER struct sipe_backend_stream *stream)
+			      SIPE_UNUSED_PARAMETER struct sipe_media_stream *stream)
 {
 	request_download_file(sipe_media_get_file_transfer(call));
 }
 
 static void
-read_cb(struct sipe_media_call *call, struct sipe_backend_stream *backend_stream)
+read_cb(struct sipe_media_call *call, struct sipe_media_stream *stream)
 {
 	struct sipe_file_transfer_lync *ft_data =
 			sipe_media_get_file_transfer(call);
@@ -153,21 +153,21 @@ read_cb(struct sipe_media_call *call, struct sipe_backend_stream *backend_stream
 		guint8 type;
 		guint16 size;
 
-		sipe_backend_media_read(call->backend_private, backend_stream,
-					&type, sizeof (guint8), TRUE);
-		sipe_backend_media_read(call->backend_private, backend_stream,
-					(guint8 *)&size, sizeof (guint16), TRUE);
+		sipe_backend_media_read(call, stream, &type, sizeof (guint8),
+					TRUE);
+		sipe_backend_media_read(call, stream, (guint8 *)&size,
+					sizeof (guint16), TRUE);
 		size = GUINT16_FROM_BE(size);
 
 		if (type == 0x01) {
-			sipe_backend_media_read(call->backend_private, backend_stream,
-						buffer, size, TRUE);
+			sipe_backend_media_read(call, stream, buffer, size,
+						TRUE);
 			buffer[size] = 0;
 			SIPE_DEBUG_INFO("Received new stream for requestId : %s", buffer);
 			sipe_backend_ft_start(&ft_data->public, NULL, NULL, 0);
 		} else if (type == 0x02) {
-			sipe_backend_media_read(call->backend_private, backend_stream,
-						buffer, size, TRUE);
+			sipe_backend_media_read(call, stream, buffer, size,
+						TRUE);
 			buffer[size] = 0;
 
 			SIPE_DEBUG_INFO("Received end of stream for requestId : %s", buffer);
@@ -180,8 +180,7 @@ read_cb(struct sipe_media_call *call, struct sipe_backend_stream *backend_stream
 		 * the buffer or the chunk. */
 	} else {
 		guint len = MIN(ft_data->expecting_len, sizeof (buffer));
-		len = sipe_backend_media_read(call->backend_private,
-				backend_stream, buffer, len, FALSE);
+		len = sipe_backend_media_read(call, stream, buffer, len, FALSE);
 		ft_data->expecting_len -= len;
 		SIPE_DEBUG_INFO("Read %d bytes. %d remaining in chunk",
 				len, ft_data->expecting_len);
