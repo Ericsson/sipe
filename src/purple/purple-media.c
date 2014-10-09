@@ -249,8 +249,8 @@ on_candidate_pair_established_cb(PurpleMedia *media,
 	}
 
 	if (call->candidate_pair_established_cb) {
-		struct sipe_backend_stream *stream =
-				sipe_backend_media_get_stream_by_id(call->backend_private, sessionid);
+		struct sipe_media_stream *stream =
+				sipe_core_media_get_stream_by_id(call, sessionid);
 		call->candidate_pair_established_cb(call, stream);
 	}
 }
@@ -441,11 +441,11 @@ stream_readable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
 		 gpointer user_data)
 {
 	struct sipe_media_call *call = (struct sipe_media_call *)user_data;
-	struct sipe_backend_stream *stream;
+	struct sipe_media_stream *stream;
 
 	SIPE_DEBUG_INFO_NOFORMAT("Stream readable");
 
-	stream = sipe_backend_media_get_stream_by_id(call->backend_private, sessionid);
+	stream = sipe_core_media_get_stream_by_id(call, sessionid);
 
 	if (stream && call->read_cb) {
 		call->read_cb(call, stream);
@@ -453,13 +453,13 @@ stream_readable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
 }
 
 gint
-sipe_backend_media_read(struct sipe_backend_media *media,
-			struct sipe_backend_stream *stream,
+sipe_backend_media_read(struct sipe_media_call *media,
+			struct sipe_media_stream *stream,
 			guint8 *buffer, guint buffer_len, gboolean blocking)
 {
 	return purple_media_manager_receive_application_data(
-			purple_media_manager_get(), media->m, stream->sessionid,
-			stream->participant, buffer, buffer_len, blocking);
+			purple_media_manager_get(), media->backend_private->m,
+			stream->id, media->with, buffer, buffer_len, blocking);
 }
 
 static void
@@ -471,12 +471,11 @@ stream_writable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
 		   gpointer user_data)
 {
 	struct sipe_media_call *call = (struct sipe_media_call *)user_data;
-	struct sipe_backend_stream *stream;
+	struct sipe_media_stream *stream;
 
 	SIPE_DEBUG_INFO("Stream %swritable", writable ? "" : "not ");
 
-	stream = sipe_backend_media_get_stream_by_id(call->backend_private,
-						     session_id);
+	stream = sipe_core_media_get_stream_by_id(call, session_id);
 
 	if (stream && call->writable_cb) {
 		call->writable_cb(call, stream, writable);
@@ -484,16 +483,16 @@ stream_writable_cb(SIPE_UNUSED_PARAMETER PurpleMediaManager *manager,
 }
 
 gint
-sipe_backend_media_write(struct sipe_backend_media *media,
-			 struct sipe_backend_stream *stream,
+sipe_backend_media_write(struct sipe_media_call *media,
+			 struct sipe_media_stream *stream,
 			 guint8 *buffer, guint buffer_len, gboolean blocking)
 {
 	return purple_media_manager_send_application_data(
-			purple_media_manager_get(), media->m, stream->sessionid,
-			stream->participant, buffer, buffer_len, blocking);
+			purple_media_manager_get(), media->backend_private->m,
+			stream->id, media->with, buffer, buffer_len, blocking);
 }
 
-struct sipe_backend_stream *
+struct sipe_backend_media_stream *
 sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      const gchar *id,
 			      const gchar *participant,
@@ -504,7 +503,7 @@ sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      guint min_port, guint max_port)
 {
 	struct sipe_backend_media *media = call->backend_private;
-	struct sipe_backend_stream *stream = NULL;
+	struct sipe_backend_media_stream *stream = NULL;
 	PurpleMediaSessionType prpl_type = sipe_media_to_purple(type);
 	PurpleMediaAppDataCallbacks callbacks = {
 			stream_readable_cb, stream_writable_cb
@@ -687,41 +686,17 @@ duplicate_tcp_candidates(GList *candidates)
 }
 
 GList *
-sipe_backend_media_get_active_local_candidates(struct sipe_backend_media *media,
-					       struct sipe_backend_stream *stream)
+sipe_backend_media_get_active_local_candidates(struct sipe_media_call *media,
+					       struct sipe_media_stream *stream)
 {
-	GList *candidates = purple_media_get_active_local_candidates(media->m,
-			stream->sessionid, stream->participant);
+	GList *candidates = purple_media_get_active_local_candidates(
+			media->backend_private->m, stream->id, media->with);
 	return duplicate_tcp_candidates(candidates);
 }
 
 GList *
-sipe_backend_media_get_active_local_candidates(struct sipe_media_call *media,
-					       struct sipe_media_stream *stream)
-{
-	GList *candidates = purple_media_get_active_remote_candidates(media->m,
-			stream->sessionid, stream->participant);
-	return duplicate_tcp_candidates(candidates);
-}
-
-void
-sipe_backend_media_set_encryption_keys(struct sipe_backend_media *media,
-				       struct sipe_backend_stream *stream,
-				       const guchar *encryption_key,
-				       const guchar *decryption_key)
-{
-	purple_media_set_encryption_parameters(media->m, stream->sessionid,
-			PURPLE_MEDIA_CIPHER_AES_128_ICM,
-			PURPLE_MEDIA_AUTHENTICATION_HMAC_SHA1_80,
-			(gchar *)encryption_key, 30);
-	purple_media_set_decryption_parameters(media->m, stream->sessionid,
-			stream->participant, PURPLE_MEDIA_CIPHER_AES_128_ICM,
-			PURPLE_MEDIA_AUTHENTICATION_HMAC_SHA1_80,
-			(gchar *)decryption_key, 30);
-}
-
-const gchar *
-sipe_backend_stream_get_id(struct sipe_backend_stream *stream)
+sipe_backend_media_get_active_remote_candidates(struct sipe_media_call *media,
+						struct sipe_media_stream *stream)
 {
 	GList *candidates = purple_media_get_active_remote_candidates(
 			media->backend_private->m, stream->id, media->with);
@@ -1025,9 +1000,10 @@ GList *
 sipe_backend_get_local_candidates(struct sipe_media_call *media,
 				  struct sipe_media_stream *stream)
 {
-	GList *candidates = purple_media_get_local_candidates(media->m,
-							      stream->sessionid,
-							      stream->participant);
+	GList *candidates =
+			purple_media_get_local_candidates(media->backend_private->m,
+							  stream->id,
+							  media->with);
 
 	candidates = duplicate_tcp_candidates(candidates);
 

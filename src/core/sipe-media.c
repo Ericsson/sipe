@@ -55,6 +55,8 @@ struct sipe_media_call_private {
 	/* private part starts here */
 	struct sipe_core_private	*sipe_private;
 
+	GSList				*streams;
+
 	struct sipmsg			*invitation;
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
@@ -72,21 +74,9 @@ struct sipe_media_call_private {
 
 struct sipe_media_stream_private {
 	struct sipe_media_stream public;
-
-	guchar *encryption_key;
-	gboolean remote_candidates_and_codecs_set;
-
-	GSList *extra_sdp;
-
-	/* Arbitrary data associated with the stream. */
-	gpointer data;
-	GDestroyNotify data_free_func;
 };
 #define SIPE_MEDIA_STREAM         ((struct sipe_media_stream *) stream_private)
 #define SIPE_MEDIA_STREAM_PRIVATE ((struct sipe_media_stream_private *) stream)
-
-static SipeEncryptionPolicy
-get_encryption_policy(struct sipe_core_private *sipe_private);
 
 static void sipe_media_codec_list_free(GList *codecs)
 {
@@ -105,15 +95,10 @@ remove_stream(struct sipe_media_call* call,
 	      struct sipe_media_stream_private *stream_private)
 {
 	struct sipe_media_call_private *call_private = SIPE_MEDIA_CALL_PRIVATE;
-
-	sipe_media_stream_set_data(SIPE_MEDIA_STREAM, NULL, NULL);
-
 	call_private->streams =
 			g_slist_remove(call_private->streams, stream_private);
 	sipe_backend_media_stream_free(SIPE_MEDIA_STREAM->backend_private);
 	g_free(SIPE_MEDIA_STREAM->id);
-	g_free(stream_private->encryption_key);
-	sipe_utils_nameval_free(stream_private->extra_sdp);
 	g_free(stream_private);
 }
 
@@ -122,8 +107,13 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 {
 	if (call_private) {
 		struct sip_session *session;
-		sipe_backend_media_free(call_private->public.backend_private);
-		g_free(call_private->public.with);
+
+		while (call_private->streams) {
+			remove_stream(SIPE_MEDIA_CALL,
+				      call_private->streams->data);
+		}
+
+		sipe_backend_media_free(SIPE_MEDIA_CALL->backend_private);
 
 		session = sipe_session_find_call(call_private->sipe_private,
 						 call_private->public.with);
@@ -352,8 +342,6 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	struct sdpmedia *sdpmedia = g_new0(struct sdpmedia, 1);
 	GList *codecs = sipe_backend_get_local_codecs(SIPE_MEDIA_CALL,
 						      SIPE_MEDIA_STREAM);
-	SipeEncryptionPolicy encryption_policy =
-			get_encryption_policy(call_private->sipe_private);
 	guint rtcp_port = 0;
 	SipeMediaType type;
 	GSList *attributes = NULL;
@@ -367,9 +355,9 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 		type = SIPE_MEDIA_AUDIO;
 	else if (sipe_strequal(sdpmedia->name, "video"))
 		type = SIPE_MEDIA_VIDEO;
-	else if (sipe_strequal(media->name, "data"))
+	else if (sipe_strequal(sdpmedia->name, "data"))
 		type = SIPE_MEDIA_APPLICATION;
-	else if (sipe_strequal(media->name, "applicationsharing"))
+	else if (sipe_strequal(sdpmedia->name, "applicationsharing"))
 		type = SIPE_MEDIA_APPLICATION;
 	else {
 		// TODO: incompatible media, should not happen here
@@ -420,7 +408,6 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	if (!candidates) {
 		candidates = sipe_backend_get_local_candidates(SIPE_MEDIA_CALL,
 							       SIPE_MEDIA_STREAM);
-		candidates = remove_wrong_farstream_0_1_tcp_candidates(candidates);
 	}
 
 	sdpmedia->candidates = backend_candidates_to_sdpcandidate(candidates);
@@ -445,7 +432,7 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 		g_free(tmp);
 	}
 
-	media->attributes = attributes;
+	sdpmedia->attributes = attributes;
 
 	// Process remote candidates
 	candidates = sipe_backend_media_get_active_remote_candidates(SIPE_MEDIA_CALL,
@@ -453,56 +440,7 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	sdpmedia->remote_candidates = backend_candidates_to_sdpcandidate(candidates);
 	sipe_media_candidate_list_free(candidates);
 
-	sdpmedia->encryption_active = call_private->encryption_compatible &&
-				      stream_private->remote_candidates_and_codecs_set;
-
-	// Set our key if encryption is enabled.
-	if (stream_private->encryption_key &&
-	    encryption_policy != SIPE_ENCRYPTION_POLICY_REJECTED) {
-		sdpmedia->encryption_key = g_memdup(stream_private->encryption_key, 30);
-	}
-
-	if (encryption_policy != call_private->sipe_private->server_av_encryption_policy) {
-		const gchar *encryption = NULL;
-		switch (encryption_policy) {
-			case SIPE_ENCRYPTION_POLICY_REJECTED:
-				encryption = "rejected";
-				break;
-			case SIPE_ENCRYPTION_POLICY_OPTIONAL:
-				encryption = "optional";
-				break;
-			case SIPE_ENCRYPTION_POLICY_REQUIRED:
-			default:
-				encryption = "required";
-				break;
-		}
-
-		attributes = sipe_utils_nameval_add(attributes,
-						    "encryption", encryption);
-	}
-
-	// Append extra attributes assigned to the stream.
-	for (j = stream_private->extra_sdp; j; j = g_slist_next(j)) {
-		struct sipnameval *attr = j->data;
-		attributes = sipe_utils_nameval_add(attributes,
-						    attr->name, attr->value);
-	}
-
-	sdpmedia->attributes = attributes;
-
 	return sdpmedia;
-}
-
-static SipeEncryptionPolicy
-get_encryption_policy(struct sipe_core_private *sipe_private)
-{
-	SipeEncryptionPolicy result =
-			sipe_backend_media_get_encryption_policy(SIPE_CORE_PUBLIC);
-	if (result == SIPE_ENCRYPTION_POLICY_OBEY_SERVER) {
-		result = sipe_private->server_av_encryption_policy;
-	}
-
-	return result;
 }
 
 static SipeEncryptionPolicy
@@ -521,9 +459,8 @@ static struct sdpmsg *
 sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 {
 	struct sipe_core_private *sipe_private = call_private->sipe_private;
-	struct sipe_backend_media *backend_media = call_private->public.backend_private;
 	struct sdpmsg *msg = g_new0(struct sdpmsg, 1);
-	GSList *streams = sipe_backend_media_get_streams(backend_media);
+	GSList *streams = call_private->streams;
 	struct sip_session *session = sipe_session_find_call(sipe_private,
 			call_private->public.with);
 	struct sip_dialog *dialog = session->dialogs->data;
@@ -696,6 +633,18 @@ process_invite_call_response(struct sipe_core_private *sipe_private,
 								   struct sipmsg *msg,
 								   struct transaction *trans);
 
+struct sipe_media_stream *
+sipe_core_media_get_stream_by_id(struct sipe_media_call *call, const gchar *id)
+{
+	GSList *i;
+	for (i = SIPE_MEDIA_CALL_PRIVATE->streams; i; i = i->next) {
+		struct sipe_media_stream *stream = i->data;
+		if (sipe_strequal(stream->id, id))
+			return stream;
+	}
+	return NULL;
+}
+
 static gboolean
 update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 			    struct sdpmedia *media)
@@ -750,12 +699,11 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 				g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
 		g_hash_table_insert(call_private->stream_decryption_keys,
 				g_strdup(media->name), g_memdup(media->encryption_key, 30));
-		sipe_backend_media_set_encryption_keys(backend_media,
-				backend_stream, encryption_key, media->encryption_key);
+		sipe_backend_media_set_encryption_keys(SIPE_MEDIA_CALL, stream,
+				encryption_key, media->encryption_key);
 	}
 
-	result = sipe_backend_set_remote_codecs(backend_media,
-						backend_stream,
+	result = sipe_backend_set_remote_codecs(SIPE_MEDIA_CALL, stream,
 						backend_codecs);
 	sipe_media_codec_list_free(backend_codecs);
 
@@ -788,7 +736,11 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 						 backend_candidates);
 	sipe_media_candidate_list_free(backend_candidates);
 
-	SIPE_MEDIA_STREAM_PRIVATE->remote_candidates_and_codecs_set = TRUE;
+	if (sipe_utils_nameval_find(media->attributes, "inactive")) {
+		sipe_backend_stream_hold(SIPE_MEDIA_CALL, stream, FALSE);
+	} else if (sipe_backend_stream_is_held(stream)) {
+		sipe_backend_stream_unhold(SIPE_MEDIA_CALL, stream, FALSE);
+	}
 
 	return TRUE;
 }
@@ -1060,61 +1012,12 @@ void sipe_media_hangup(struct sipe_media_call_private *call_private)
 	return create_media(sipe_private, with, initiator, ice_version, FALSE);
 }
 
-static struct sipe_media_call_private *
-sipe_data_session_new(struct sipe_core_private *sipe_private,
-		      const gchar* with, gboolean initiator,
-		      SipeIceVersion ice_version)
+static gboolean
+sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
+		      const gchar *with, SipeMediaType type,
+		      SipeIceVersion ice_version, gboolean initiator)
 {
-	return create_media(sipe_private, with, initiator, ice_version, TRUE);
-}
-
-static struct sipe_media_call_private *
-create_media_outgoing(struct sipe_core_private *sipe_private, const gchar* with,
-		      gboolean initiator, SipeIceVersion ice_version,
-		      gboolean hidden_from_ui)
-{
-	struct sipe_media_call_private *call_private =
-			create_media(sipe_private, with, initiator, ice_version,
-				     hidden_from_ui);
-	struct sip_session *session = sipe_session_add_call(sipe_private, with);
-	struct sip_dialog *dialog = sipe_dialog_add(session);
-
-	dialog->callid = gencallid();
-	dialog->with = g_strdup(session->with);
-	dialog->ourtag = gentag();
-
-	SIPE_MEDIA_CALL->with = g_strdup(with);
-
-	return call_private;
-}
-
-static struct sipe_media_call_private *
-sipe_media_call_new_outgoing(struct sipe_core_private *sipe_private,
-			     const gchar* with, gboolean initiator,
-			     SipeIceVersion ice_version)
-{
-	return create_media_outgoing(sipe_private, with, initiator, ice_version,
-				     FALSE);
-}
-
-struct sipe_media_call *
-sipe_data_session_new_outgoing(struct sipe_core_private *sipe_private,
-			       const gchar* with, gboolean initiator,
-			       SipeIceVersion ice_version)
-{
-	struct sipe_media_call_private *call_private =
-			create_media_outgoing(sipe_private, with, initiator,
-					      ice_version, TRUE);
-	return SIPE_MEDIA_CALL;
-}
-
-struct sipe_media_stream *
-sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
-		      SipeMediaType type, SipeIceVersion ice_version,
-		      gboolean initiator)
-{
-	struct sipe_media_call_private *call_private = SIPE_MEDIA_CALL_PRIVATE;
-	struct sipe_core_private *sipe_private = call_private->sipe_private;
+	struct sipe_media_call_private *call_private = sipe_private->media_call;
 	struct sipe_media_stream_private *stream_private;
 	struct sipe_backend_media_stream *backend_stream;
 	struct sipe_backend_media_relays *backend_media_relays;
@@ -1126,9 +1029,24 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 						sipe_private->media_relay_username,
 						sipe_private->media_relay_password);
 
-	stream = sipe_backend_media_add_stream(&sipe_private->media_call->public,
-					       id, with, type, ice_version,
-					       initiator, backend_media_relays);
+
+	backend_stream = sipe_backend_media_add_stream(SIPE_MEDIA_CALL,
+						id, with, type, ice_version,
+						initiator, backend_media_relays);
+
+	sipe_backend_media_relays_free(backend_media_relays);
+
+	if (!backend_stream) {
+		return FALSE;
+	}
+
+	stream_private = g_new0(struct sipe_media_stream_private, 1);
+	SIPE_MEDIA_STREAM->id = g_strdup(id);
+	SIPE_MEDIA_STREAM->backend_private = backend_stream;
+
+	sipe_private->media_call->streams =
+			g_slist_append(sipe_private->media_call->streams,
+				       stream_private);
 
 	key = g_new0(guchar, 30);
 	for (i = 0; i != 30; ++i) {
@@ -1138,52 +1056,7 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 	g_hash_table_insert(sipe_private->media_call->stream_encryption_keys,
 			g_strdup(id), key);
 
-	sipe_backend_media_relays_free(backend_media_relays);
-
-	if (!backend_stream) {
-		return NULL;
-	}
-
-	stream_private = g_new0(struct sipe_media_stream_private, 1);
-	SIPE_MEDIA_STREAM->id = g_strdup(id);
-	SIPE_MEDIA_STREAM->backend_private = backend_stream;
-
-	stream_private->encryption_key = g_new0(guchar, 30);
-	for (i = 0; i != 30; ++i) {
-		stream_private->encryption_key[i] = rand() & 0xff;
-	}
-
-	sipe_private->media_call->streams =
-			g_slist_append(sipe_private->media_call->streams,
-				       stream_private);
-
-	return SIPE_MEDIA_STREAM;
-}
-
-static void
-append_proxy_fallback_invite_if_needed(struct sipe_media_call_private *call_private)
-{
-	struct sipe_core_private *sipe_private = call_private->sipe_private;
-	const gchar *ip = sipe_backend_network_ip_address(SIPE_CORE_PUBLIC);
-	gchar *body;
-
-	if (sipe_media_get_sip_dialog(SIPE_MEDIA_CALL)->cseq != 0 ||
-	    call_private->ice_version != SIPE_ICE_RFC_5245 ||
-	    sipe_strequal(SIPE_MEDIA_CALL->with, sipe_private->test_call_bot_uri)) {
-		return;
-	}
-
-	body = g_strdup_printf("Content-Type: application/sdp\r\n"
-			       "Content-Transfer-Encoding: 7bit\r\n"
-			       "Content-Disposition: session; handling=optional; ms-proxy-2007fallback\r\n"
-			       "\r\n"
-			       "o=- 0 0 IN IP4 %s\r\n"
-			       "s=session\r\n"
-			       "c=IN IP4 %s\r\n"
-			       "m=audio 0 RTP/AVP\r\n",
-			       ip, ip);
-	sipe_media_add_extra_invite_section(SIPE_MEDIA_CALL,
-					    "multipart/alternative",body);
+	return TRUE;
 }
 
 static void
@@ -1425,7 +1298,7 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 
 		if (   media->port != 0
 		    && !sipe_core_media_get_stream_by_id(SIPE_MEDIA_CALL, id)) {
-			struct sipe_media_stream *stream;
+			gchar *with;
 
 			if (sipe_strequal(id, "audio"))
 				type = SIPE_MEDIA_AUDIO;
@@ -1574,8 +1447,7 @@ maybe_retry_call_with_ice_version(struct sipe_core_private *sipe_private,
 	if (call_private->ice_version != ice_version &&
 	    sip_transaction_cseq(trans) == 1) {
 		gchar *with = g_strdup(call_private->public.with);
-		struct sipe_backend_media *backend_private = call_private->public.backend_private;
-		gboolean with_video = sipe_backend_media_get_stream_by_id(backend_private, "video") != NULL;
+		gboolean with_video = sipe_core_media_get_stream_by_id(SIPE_MEDIA_CALL, "video") != NULL;
 
 		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 		SIPE_DEBUG_INFO("Retrying call with ICEv%d.",
@@ -1737,8 +1609,12 @@ gboolean is_media_session_msg(struct sipe_media_call_private *call_private,
 
 void sipe_media_handle_going_offline(struct sipe_media_call_private *call_private)
 {
+	struct sipe_backend_media *backend_private;
+
+	backend_private = call_private->public.backend_private;
+
 	if (!sipe_backend_media_is_initiator(SIPE_MEDIA_CALL, NULL) &&
-	    !sipe_backend_media_accepted(SIPE_MEDIA_CALL->backend_private)) {
+	    !sipe_backend_media_accepted(backend_private)) {
 		sip_transport_response(call_private->sipe_private,
 				       call_private->invitation,
 				       480, "Temporarily Unavailable", NULL);

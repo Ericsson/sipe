@@ -35,8 +35,8 @@
 #include "sipe-media.h"
 
 struct {
-	struct sipe_backend_media *media;
-	struct sipe_backend_stream *stream;
+	struct sipe_media_call *media;
+	struct sipe_media_stream *stream;
 	GSocket *socket;
 	GSocket *data_socket;
 	GIOChannel *listen_channel;
@@ -44,7 +44,7 @@ struct {
 } foobar;
 
 static void
-read_cb(struct sipe_media_call *call, struct sipe_backend_stream *backend_stream)
+read_cb(struct sipe_media_call *call, struct sipe_media_stream *stream)
 {
 	guint8 buffer[0x800];
 	gint bytes_read;
@@ -52,8 +52,8 @@ read_cb(struct sipe_media_call *call, struct sipe_backend_stream *backend_stream
 	GError *error = 0;
 
 	SIPE_DEBUG_INFO_NOFORMAT("INCOMING APPSHARE DATA");
-	bytes_read = sipe_backend_media_read(call->backend_private,
-			backend_stream, buffer, sizeof (buffer), FALSE);
+	bytes_read = sipe_backend_media_read(call, stream, buffer,
+					     sizeof (buffer), FALSE);
 
 	if (bytes_read == 0) {
 		return;
@@ -109,8 +109,7 @@ socket_connect_cb (SIPE_UNUSED_PARAMETER GIOChannel *channel,
 }
 
 static void
-writable_cb(struct sipe_media_call *call,
-	    struct sipe_backend_stream *backend_stream,
+writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 	    gboolean writable)
 {
 	if (writable && !foobar.socket) {
@@ -138,8 +137,8 @@ writable_cb(struct sipe_media_call *call,
 		g_io_add_watch(foobar.listen_channel, G_IO_IN, socket_connect_cb, NULL);
 
 		/* We need to send the data after the reinvite, or need to set the encryption params after the first invite*/
-		foobar.media = call->backend_private;
-		foobar.stream = backend_stream;
+		foobar.media = call;
+		foobar.stream = stream;
 
 		g_spawn_command_line_async("xfreerdp /v:/tmp/sipe-appshare-socket /sec:rdp", &error);
 		g_assert_no_error(error);

@@ -378,13 +378,13 @@ struct sipe_media_call {
 	void (*call_hold_cb)  (struct sipe_media_call *, gboolean local,
 			       gboolean state);
 	void (*candidate_pair_established_cb)(struct sipe_media_call *,
-					      struct sipe_backend_stream *);
+					      struct sipe_media_stream *);
 	void (*call_hangup_cb)(struct sipe_media_call *, gboolean local);
 	void (*error_cb)(struct sipe_media_call *, gchar *message);
 
-	void (*read_cb)(struct sipe_media_call *, struct sipe_backend_stream *);
+	void (*read_cb)(struct sipe_media_call *, struct sipe_media_stream *);
 	void (*writable_cb)(struct sipe_media_call *,
-			    struct sipe_backend_stream *, gboolean writable);
+			    struct sipe_media_stream *, gboolean writable);
 };
 
 struct sipe_media_relay {
@@ -409,28 +409,27 @@ struct sipe_backend_media_relays * sipe_backend_media_relays_convert(GSList *med
 								     gchar *password);
 void sipe_backend_media_relays_free(struct sipe_backend_media_relays *media_relays);
 
-struct sipe_backend_stream *sipe_backend_media_add_stream(struct sipe_media_call *call,
+struct sipe_backend_media_stream *sipe_backend_media_add_stream(struct sipe_media_call *call,
 							  const gchar *id,
 							  const gchar *participant,
 							  SipeMediaType type,
 							  SipeIceVersion ice_version,
 							  gboolean initiator,
-							  struct sipe_backend_media_relays *media_relays,
-							  guint min_port, guint max_port);
+							  struct sipe_backend_media_relays *media_relays);
 void sipe_backend_media_add_remote_candidates(struct sipe_media_call *media,
 					      struct sipe_media_stream *stream,
 					      GList *candidates);
 gboolean sipe_backend_media_is_initiator(struct sipe_media_call *media,
 					 struct sipe_media_stream *stream);
 gboolean sipe_backend_media_accepted(struct sipe_backend_media *media);
-gboolean sipe_backend_stream_initialized(struct sipe_backend_media *media,
-					 struct sipe_backend_stream *stream);
-GList *sipe_backend_media_get_active_local_candidates(struct sipe_backend_media *media,
-						      struct sipe_backend_stream *stream);
-GList *sipe_backend_media_get_active_remote_candidates(struct sipe_backend_media *media,
-						       struct sipe_backend_stream *stream);
-void sipe_backend_media_set_encryption_keys(struct sipe_backend_media *media,
-					    struct sipe_backend_stream *stream,
+gboolean sipe_backend_stream_initialized(struct sipe_media_call *media,
+					 struct sipe_media_stream *stream);
+GList *sipe_backend_media_get_active_local_candidates(struct sipe_media_call *media,
+						      struct sipe_media_stream *stream);
+GList *sipe_backend_media_get_active_remote_candidates(struct sipe_media_call *media,
+						       struct sipe_media_stream *stream);
+void sipe_backend_media_set_encryption_keys(struct sipe_media_call *media,
+					    struct sipe_media_stream *stream,
 					    const guchar *encryption_key,
 					    const guchar *decryption_key);
 
@@ -509,12 +508,12 @@ void sipe_backend_media_accept(struct sipe_backend_media *media, gboolean local)
 void sipe_backend_media_hangup(struct sipe_backend_media *media, gboolean local);
 void sipe_backend_media_reject(struct sipe_backend_media *media, gboolean local);
 
-gint sipe_backend_media_read(struct sipe_backend_media *media,
-			     struct sipe_backend_stream *stream,
+gint sipe_backend_media_read(struct sipe_media_call *media,
+			     struct sipe_media_stream *stream,
 			     guint8 *buffer, guint buffer_len,
 			     gboolean blocking);
-gint sipe_backend_media_write(struct sipe_backend_media *media,
-			      struct sipe_backend_stream *stream,
+gint sipe_backend_media_write(struct sipe_media_call *media,
+			      struct sipe_media_stream *stream,
 			      guint8 *buffer, guint buffer_len,
 			      gboolean blocking);
 

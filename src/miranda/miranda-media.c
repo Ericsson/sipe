@@ -75,7 +75,7 @@ sipe_backend_media_relays_free(struct sipe_backend_media_relays *media_relays)
 	_NIF();
 }
 
-struct sipe_backend_stream *
+struct sipe_backend_media_stream *
 sipe_backend_media_add_stream(struct sipe_media_call *call,
 			      const gchar *id,
 			      const gchar *participant,
@@ -148,16 +148,10 @@ sipe_backend_media_get_active_remote_candidates(struct sipe_media_call *media,
 }
 
 void
-sipe_backend_media_set_encryption_keys(struct sipe_backend_media *media,
-				       struct sipe_backend_stream *stream,
+sipe_backend_media_set_encryption_keys(struct sipe_media_call *media,
+				       struct sipe_media_stream *stream,
 				       const guchar *encryption_key,
 				       const guchar *decryption_key)
-{
-	_NIF();
-}
-
-const gchar *
-sipe_backend_stream_get_id(struct sipe_backend_stream *stream)
 {
 	_NIF();
 }
@@ -375,16 +369,16 @@ sipe_backend_media_reject(struct sipe_backend_media *media, gboolean local)
 }
 
 gint
-sipe_backend_media_read(struct sipe_backend_media *media,
-			struct sipe_backend_stream *stream,
+sipe_backend_media_read(struct sipe_media_call *media,
+			struct sipe_media_stream *stream,
 			guint8 *buffer, guint buffer_len, gboolean blocking)
 {
 	_NIF();
 }
 
 gint
-sipe_backend_media_write(struct sipe_backend_media *media,
-			 struct sipe_backend_stream *stream,
+sipe_backend_media_write(struct sipe_media_call *media,
+			 struct sipe_media_stream *stream,
 			 guint8 *buffer, guint buffer_len,
 			 gboolean blocking)
 {
