@@ -74,6 +74,7 @@ struct sipe_media_stream_private {
 	struct sipe_media_stream public;
 
 	guchar *encryption_key;
+	gboolean remote_candidates_and_codecs_set;
 };
 #define SIPE_MEDIA_STREAM         ((struct sipe_media_stream *) stream_private)
 #define SIPE_MEDIA_STREAM_PRIVATE ((struct sipe_media_stream_private *) stream)
@@ -339,10 +340,6 @@ static struct sdpmedia *
 media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 			 struct sipe_media_stream_private *stream_private)
 {
-	struct sip_session *session =
-			sipe_session_find_call(call_private->sipe_private,
-					       SIPE_MEDIA_CALL->with);
-	struct sip_dialog *dialog = session->dialogs->data;
 	struct sdpmedia *sdpmedia = g_new0(struct sdpmedia, 1);
 	GList *codecs = sipe_backend_get_local_codecs(SIPE_MEDIA_CALL,
 						      SIPE_MEDIA_STREAM);
@@ -447,7 +444,7 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	sipe_media_candidate_list_free(candidates);
 
 	sdpmedia->encryption_active = call_private->encryption_compatible &&
-				      dialog->cseq != 0;
+				      stream_private->remote_candidates_and_codecs_set;
 
 	// Set our key if encryption is enabled.
 	if (stream_private->encryption_key &&
@@ -668,6 +665,12 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 	if (!stream)
 		return FALSE;
 
+	if (sipe_utils_nameval_find(media->attributes, "inactive")) {
+		sipe_backend_stream_hold(SIPE_MEDIA_CALL, stream, FALSE);
+	} else if (sipe_backend_stream_is_held(stream)) {
+		sipe_backend_stream_unhold(SIPE_MEDIA_CALL, stream, FALSE);
+	}
+
 	for (i = media->codecs; i; i = i->next) {
 		struct sdpcodec *c = i->data;
 		struct sipe_backend_codec *codec;
@@ -704,6 +707,10 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 		return FALSE;
 	}
 
+	if (SIPE_MEDIA_STREAM_PRIVATE->remote_candidates_and_codecs_set) {
+		return TRUE;
+	}
+
 	for (i = media->candidates; i; i = i->next) {
 		struct sdpcandidate *c = i->data;
 		struct sipe_backend_candidate *candidate;
@@ -724,11 +731,7 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 						 backend_candidates);
 	sipe_media_candidate_list_free(backend_candidates);
 
-	if (sipe_utils_nameval_find(media->attributes, "inactive")) {
-		sipe_backend_stream_hold(SIPE_MEDIA_CALL, stream, FALSE);
-	} else if (sipe_backend_stream_is_held(stream)) {
-		sipe_backend_stream_unhold(SIPE_MEDIA_CALL, stream, FALSE);
-	}
+	SIPE_MEDIA_STREAM_PRIVATE->remote_candidates_and_codecs_set = TRUE;
 
 	return TRUE;
 }
