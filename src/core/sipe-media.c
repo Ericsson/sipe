@@ -60,8 +60,6 @@ struct sipe_media_call_private {
 	struct sipmsg			*invitation;
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
-	GHashTable			*stream_encryption_keys;
-	GHashTable			*stream_decryption_keys;
 
 	struct sdpmsg			*smsg;
 	GSList				*failed_media;
@@ -74,9 +72,14 @@ struct sipe_media_call_private {
 
 struct sipe_media_stream_private {
 	struct sipe_media_stream public;
+
+	guchar *encryption_key;
 };
 #define SIPE_MEDIA_STREAM         ((struct sipe_media_stream *) stream_private)
 #define SIPE_MEDIA_STREAM_PRIVATE ((struct sipe_media_stream_private *) stream)
+
+static SipeEncryptionPolicy
+get_encryption_policy(struct sipe_core_private *sipe_private);
 
 static void sipe_media_codec_list_free(GList *codecs)
 {
@@ -99,6 +102,7 @@ remove_stream(struct sipe_media_call* call,
 			g_slist_remove(call_private->streams, stream_private);
 	sipe_backend_media_stream_free(SIPE_MEDIA_STREAM->backend_private);
 	g_free(SIPE_MEDIA_STREAM->id);
+	g_free(stream_private->encryption_key);
 	g_free(stream_private);
 }
 
@@ -130,8 +134,6 @@ sipe_media_call_free(struct sipe_media_call_private *call_private)
 		sdpmsg_free(call_private->smsg);
 		sipe_utils_slist_free_full(call_private->failed_media,
 				  (GDestroyNotify)sdpmedia_free);
-		g_hash_table_destroy(call_private->stream_encryption_keys);
-		g_hash_table_destroy(call_private->stream_decryption_keys);
 		g_free(call_private);
 	}
 }
@@ -339,9 +341,15 @@ static struct sdpmedia *
 media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 			 struct sipe_media_stream_private *stream_private)
 {
+	struct sip_session *session =
+			sipe_session_find_call(call_private->sipe_private,
+					       SIPE_MEDIA_CALL->with);
+	struct sip_dialog *dialog = session->dialogs->data;
 	struct sdpmedia *sdpmedia = g_new0(struct sdpmedia, 1);
 	GList *codecs = sipe_backend_get_local_codecs(SIPE_MEDIA_CALL,
 						      SIPE_MEDIA_STREAM);
+	SipeEncryptionPolicy encryption_policy =
+			get_encryption_policy(call_private->sipe_private);
 	guint rtcp_port = 0;
 	SipeMediaType type;
 	GSList *attributes = NULL;
@@ -440,6 +448,34 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	sdpmedia->remote_candidates = backend_candidates_to_sdpcandidate(candidates);
 	sipe_media_candidate_list_free(candidates);
 
+	sdpmedia->encryption_active = call_private->encryption_compatible &&
+				      dialog->cseq != 0;
+
+	// Set our key if encryption is enabled.
+	if (stream_private->encryption_key &&
+	    encryption_policy != SIPE_ENCRYPTION_POLICY_REJECTED) {
+		sdpmedia->encryption_key = g_memdup(stream_private->encryption_key, 30);
+	}
+
+	if (encryption_policy != call_private->sipe_private->server_av_encryption_policy) {
+		const gchar *encryption = NULL;
+		switch (encryption_policy) {
+			case SIPE_ENCRYPTION_POLICY_REJECTED:
+				encryption = "rejected";
+				break;
+			case SIPE_ENCRYPTION_POLICY_OPTIONAL:
+				encryption = "optional";
+				break;
+			case SIPE_ENCRYPTION_POLICY_REQUIRED:
+			default:
+				encryption = "required";
+				break;
+		}
+
+		sdpmedia->attributes = sipe_utils_nameval_add(sdpmedia->attributes,
+							      "encryption", encryption);
+	}
+
 	return sdpmedia;
 }
 
@@ -458,51 +494,14 @@ get_encryption_policy(struct sipe_core_private *sipe_private)
 static struct sdpmsg *
 sipe_media_to_sdpmsg(struct sipe_media_call_private *call_private)
 {
-	struct sipe_core_private *sipe_private = call_private->sipe_private;
 	struct sdpmsg *msg = g_new0(struct sdpmsg, 1);
 	GSList *streams = call_private->streams;
-	struct sip_session *session = sipe_session_find_call(sipe_private,
-			call_private->public.with);
-	struct sip_dialog *dialog = session->dialogs->data;
-
-	const gchar *encryption = NULL;
-	SipeEncryptionPolicy encryption_policy =
-			get_encryption_policy(sipe_private);
-
-	switch (encryption_policy) {
-		case SIPE_ENCRYPTION_POLICY_REJECTED:
-			encryption = "rejected";
-			break;
-		case SIPE_ENCRYPTION_POLICY_OPTIONAL:
-			encryption = "optional";
-			break;
-		case SIPE_ENCRYPTION_POLICY_REQUIRED:
-		default:
-			encryption = "required";
-			break;
-	}
 
 	for (; streams; streams = streams->next) {
 		struct sdpmedia *media = media_stream_to_sdpmedia(call_private,
 								  streams->data);
 		if (media) {
-			guchar *key = g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
-
-			media->encryption_active =
-					call_private->encryption_compatible &&
-					g_hash_table_lookup(call_private->stream_decryption_keys, media->name);
-
-			if (key && (media->encryption_active || dialog->cseq == 0) &&
-			    get_encryption_policy(sipe_private) != SIPE_ENCRYPTION_POLICY_REJECTED) {
-				media->encryption_key = g_memdup(key, 30);
-			}
-
 			msg->media = g_slist_append(msg->media, media);
-
-			if (encryption_policy != sipe_private->server_av_encryption_policy) {
-				media->attributes =
-						sipe_utils_nameval_add(media->attributes, "encryption", encryption);
-			}
 
 			if (msg->ip == NULL)
 				msg->ip = g_strdup(media->ip);
@@ -693,14 +692,10 @@ update_call_from_remote_sdp(struct sipe_media_call_private* call_private,
 		backend_codecs = g_list_append(backend_codecs, codec);
 	}
 
-	if (media->encryption_key && media->encryption_active &&
-	    !g_hash_table_lookup(call_private->stream_decryption_keys, media->name)) {
-		guchar *encryption_key =
-				g_hash_table_lookup(call_private->stream_encryption_keys, media->name);
-		g_hash_table_insert(call_private->stream_decryption_keys,
-				g_strdup(media->name), g_memdup(media->encryption_key, 30));
+	if (media->encryption_key && SIPE_MEDIA_STREAM_PRIVATE->encryption_key) {
 		sipe_backend_media_set_encryption_keys(SIPE_MEDIA_CALL, stream,
-				encryption_key, media->encryption_key);
+				SIPE_MEDIA_STREAM_PRIVATE->encryption_key,
+				media->encryption_key);
 	}
 
 	result = sipe_backend_set_remote_codecs(SIPE_MEDIA_CALL, stream,
@@ -972,10 +967,6 @@ create_media(struct sipe_core_private *sipe_private, const gchar* with,
 
 	call_private->ice_version = ice_version;
 	call_private->encryption_compatible = TRUE;
-	call_private->stream_encryption_keys =
-			g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-	call_private->stream_decryption_keys =
-			g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
 
 	call_private->public.stream_initialized_cb  = stream_initialized_cb;
 	call_private->public.stream_end_cb          = stream_end_cb;
@@ -1021,7 +1012,6 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 	struct sipe_media_stream_private *stream_private;
 	struct sipe_backend_media_stream *backend_stream;
 	struct sipe_backend_media_relays *backend_media_relays;
-	guchar *key;
 	int i;
 
 	backend_media_relays = sipe_backend_media_relays_convert(
@@ -1044,17 +1034,14 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 	SIPE_MEDIA_STREAM->id = g_strdup(id);
 	SIPE_MEDIA_STREAM->backend_private = backend_stream;
 
+	stream_private->encryption_key = g_new0(guchar, 30);
+	for (i = 0; i != 30; ++i) {
+		stream_private->encryption_key[i] = rand() & 0xff;
+	}
+
 	sipe_private->media_call->streams =
 			g_slist_append(sipe_private->media_call->streams,
 				       stream_private);
-
-	key = g_new0(guchar, 30);
-	for (i = 0; i != 30; ++i) {
-		key[i] = rand() & 0xff;
-	}
-
-	g_hash_table_insert(sipe_private->media_call->stream_encryption_keys,
-			g_strdup(id), key);
 
 	return TRUE;
 }
