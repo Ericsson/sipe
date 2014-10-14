@@ -54,6 +54,9 @@ struct sipe_file_transfer_lync {
 
 	struct sipe_core_private *sipe_private;
 	struct sip_dialog *dialog;
+
+	void (*call_reject_parent_cb)(struct sipe_media_call *call,
+				      gboolean local);
 };
 #define SIPE_FILE_TRANSFER         ((struct sipe_file_transfer *) ft_private)
 #define SIPE_FILE_TRANSFER_PRIVATE ((struct sipe_file_transfer_lync *) ft)
@@ -220,6 +223,21 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 	}
 }
 
+static void
+call_reject_cb(struct sipe_media_call *call, gboolean local)
+{
+	struct sipe_file_transfer_lync *ft_private =
+			sipe_media_get_file_transfer(call);
+
+	if (ft_private->call_reject_parent_cb) {
+		ft_private->call_reject_parent_cb(call, local);
+	}
+
+	if (!local) {
+		sipe_backend_ft_cancel_remote(&ft_private->public);
+	}
+}
+
 static gboolean
 ft_lync_incoming_end(struct sipe_file_transfer *ft)
 {
@@ -294,6 +312,9 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	call = (struct sipe_media_call *)sipe_private->media_call;
 	call->candidate_pair_established_cb = candidate_pair_established_cb;
 	call->read_cb = read_cb;
+
+	ft_private->call_reject_parent_cb = call->call_reject_cb;
+	call->call_reject_cb = call_reject_cb;
 
 	ft_private->sipe_private = sipe_private;
 
