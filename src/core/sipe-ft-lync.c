@@ -99,7 +99,7 @@ request_download_file(struct sipe_file_transfer_lync *ft_private)
 	g_free(body);
 
 	body = g_strdup_printf(DOWNLOAD_FILE_REQUEST,
-			       ft_private->request_id + 1,
+			       ++ft_private->request_id,
 			       ft_private->id,
 			       ft_private->file_name);
 
@@ -257,7 +257,7 @@ ft_lync_incoming_end(struct sipe_file_transfer *ft)
 
 	gchar *body = g_strdup_printf(FILETRANSFER_PROGRESS,
 			       rand(),
-			       ft_private->request_id + 1,
+			       ft_private->request_id,
 			       ft_private->file_size - 1);
 
 	sip_transport_info(ft_private->sipe_private,
