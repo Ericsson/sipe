@@ -161,7 +161,7 @@ void process_incoming_info(struct sipe_core_private *sipe_private,
 	}
 	else if (g_str_has_prefix(contenttype, "application/ms-filetransfer+xml"))
 	{
-		sip_transport_response(sipe_private, msg, 200, "OK", NULL);
+		process_incoming_info_ft_lync(sipe_private, msg);
 		return;
 	}
 
