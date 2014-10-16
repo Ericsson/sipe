@@ -189,6 +189,25 @@ ft_request_denied(PurpleXfer *xfer)
 }
 
 static void
+ft_cancelled(PurpleXfer *xfer)
+{
+	struct sipe_file_transfer *ft = PURPLE_XFER_TO_SIPE_FILE_TRANSFER;
+	PurpleXferStatus status = purple_xfer_get_status(xfer);
+
+	if (ft->cancelled) {
+		if (status == PURPLE_XFER_STATUS_CANCEL_LOCAL) {
+			ft->cancelled(ft, TRUE);
+		} else if (status == PURPLE_XFER_STATUS_CANCEL_REMOTE) {
+			ft->cancelled(ft, FALSE);
+		} else {
+			// We shouldn't ever get here.
+		}
+	}
+
+	ft_free_xfer_struct(xfer);
+}
+
+static void
 ft_init(PurpleXfer *xfer)
 {
 	struct sipe_file_transfer *ft = PURPLE_XFER_TO_SIPE_FILE_TRANSFER;
@@ -278,8 +297,8 @@ create_xfer(PurpleAccount *account, PurpleXferType type, const char *who,
 		purple_xfer_set_protocol_data(xfer, ft);
 		purple_xfer_set_init_fnc(xfer, ft_init);
 		purple_xfer_set_request_denied_fnc(xfer, ft_request_denied);
-		purple_xfer_set_cancel_send_fnc(xfer, ft_free_xfer_struct);
-		purple_xfer_set_cancel_recv_fnc(xfer, ft_free_xfer_struct);
+		purple_xfer_set_cancel_send_fnc(xfer, ft_cancelled);
+		purple_xfer_set_cancel_recv_fnc(xfer, ft_cancelled);
 		purple_xfer_set_start_fnc(xfer, ft_start);
 		purple_xfer_set_end_fnc(xfer, ft_end);
 		if (type == PURPLE_XFER_TYPE_SEND) {
