@@ -991,14 +991,6 @@ sipe_data_session_new(struct sipe_core_private *sipe_private,
 	return create_media(sipe_private, with, initiator, ice_version, TRUE);
 }
 
-void sipe_media_hangup(struct sipe_media_call_private *call_private)
-{
-	if (call_private) {
-		sipe_backend_media_hangup(call_private->public.backend_private,
-					  FALSE);
-	}
-}
-
 static gboolean
 sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 		      const gchar *with, SipeMediaType type,
@@ -1047,14 +1039,16 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 			 const char *with, SipeIceVersion ice_version,
 			 gboolean with_video)
 {
+	struct sipe_media_call_private *call_private;
 	struct sip_session *session;
 	struct sip_dialog *dialog;
 
 	if (sipe_private->media_call)
 		return;
 
-	sipe_private->media_call = sipe_media_call_new(sipe_private, with, TRUE,
-						       ice_version);
+	call_private = sipe_media_call_new(sipe_private, with, TRUE,
+					   ice_version);
+	sipe_private->media_call = call_private;
 
 	session = sipe_session_add_call(sipe_private, with);
 	dialog = sipe_dialog_add(session);
@@ -1062,15 +1056,16 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 	dialog->with = g_strdup(session->with);
 	dialog->ourtag = gentag();
 
-	sipe_private->media_call->public.with = g_strdup(session->with);
+	SIPE_MEDIA_CALL->with = g_strdup(session->with);
 
 	if (!sipe_media_stream_add(sipe_private, "audio", with, SIPE_MEDIA_AUDIO,
-				   sipe_private->media_call->ice_version,
+				   call_private->ice_version,
 				   TRUE)) {
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
 					  _("Error occured"),
 					  _("Error creating audio stream"));
-		sipe_media_hangup(sipe_private->media_call);
+		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private,
+					  FALSE);
 		return;
 	}
 
@@ -1081,7 +1076,8 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
 					  _("Error occured"),
 					  _("Error creating video stream"));
-		sipe_media_hangup(sipe_private->media_call);
+		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private,
+					  FALSE);
 		return;
 	}
 
@@ -1100,6 +1096,7 @@ sipe_core_media_initiate_call(struct sipe_core_public *sipe_public,
 void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 					struct sipe_chat_session *chat_session)
 {
+	struct sipe_media_call_private *call_private;
 	struct sipe_core_private *sipe_private = SIPE_CORE_PRIVATE;
 	struct sip_session *session;
 	struct sip_dialog *dialog;
@@ -1127,8 +1124,9 @@ void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 	ice_version = SIPE_CORE_PRIVATE_FLAG_IS(LYNC2013) ? SIPE_ICE_RFC_5245 :
 							    SIPE_ICE_DRAFT_6;
 
-	sipe_private->media_call = sipe_media_call_new(sipe_private, av_uri,
-						       TRUE, ice_version);
+	call_private = sipe_media_call_new(sipe_private, av_uri, TRUE,
+					   ice_version);
+	sipe_private->media_call = call_private;
 
 	session = sipe_session_add_call(sipe_private, av_uri);
 	dialog = sipe_dialog_add(session);
@@ -1138,16 +1136,17 @@ void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 
 	g_free(av_uri);
 
-	sipe_private->media_call->public.with = g_strdup(session->with);
+	SIPE_MEDIA_CALL->with = g_strdup(session->with);
 
 	if (!sipe_media_stream_add(sipe_private, "audio", dialog->with,
-				   SIPE_MEDIA_AUDIO,
-				   sipe_private->media_call->ice_version,
+				   SIPE_MEDIA_AUDIO, call_private->ice_version,
 				   TRUE)) {
 		sipe_backend_notify_error(sipe_public,
 					  _("Error occured"),
 					  _("Error creating audio stream"));
-		sipe_media_hangup(sipe_private->media_call);
+
+		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private,
+					  FALSE);
 		sipe_private->media_call = NULL;
 	}
 
@@ -1245,7 +1244,9 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 	if (!smsg) {
 		sip_transport_response(sipe_private, msg,
 				       488, "Not Acceptable Here", NULL);
-		sipe_media_hangup(call_private);
+		if (call_private) {
+			sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
+		}
 		return;
 	}
 
@@ -1329,7 +1330,7 @@ void process_incoming_cancel_call(struct sipe_core_private *sipe_private,
 				       487, "Request Terminated", NULL);
 	}
 
-	sipe_media_hangup(call_private);
+	sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 }
 
 static gboolean
@@ -1421,7 +1422,7 @@ maybe_retry_call_with_ice_version(struct sipe_core_private *sipe_private,
 		gchar *with = g_strdup(call_private->public.with);
 		gboolean with_video = sipe_core_media_get_stream_by_id(SIPE_MEDIA_CALL, "video") != NULL;
 
-		sipe_media_hangup(call_private);
+		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 		SIPE_DEBUG_INFO("Retrying call with ICEv%d.",
 				ice_version == SIPE_ICE_DRAFT_6 ? 6 : 19);
 		sipe_media_initiate_call(sipe_private, with, ice_version,
@@ -1539,7 +1540,7 @@ process_invite_call_response(struct sipe_core_private *sipe_private,
 		g_string_free(desc, TRUE);
 
 		sipe_media_send_ack(sipe_private, msg, trans);
-		sipe_media_hangup(call_private);
+		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 
 		return TRUE;
 	}
@@ -1549,7 +1550,7 @@ process_invite_call_response(struct sipe_core_private *sipe_private,
 	if (!smsg) {
 		sip_transport_response(sipe_private, msg,
 				       488, "Not Acceptable Here", NULL);
-		sipe_media_hangup(call_private);
+		sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 		return FALSE;
 	}
 
@@ -1581,12 +1582,8 @@ gboolean is_media_session_msg(struct sipe_media_call_private *call_private,
 
 void sipe_media_handle_going_offline(struct sipe_media_call_private *call_private)
 {
-	struct sipe_backend_media *backend_private;
-
-	backend_private = call_private->public.backend_private;
-
 	if (!sipe_backend_media_is_initiator(SIPE_MEDIA_CALL, NULL) &&
-	    !sipe_backend_media_accepted(backend_private)) {
+	    !sipe_backend_media_accepted(SIPE_MEDIA_CALL->backend_private)) {
 		sip_transport_response(call_private->sipe_private,
 				       call_private->invitation,
 				       480, "Temporarily Unavailable", NULL);
@@ -1599,7 +1596,7 @@ void sipe_media_handle_going_offline(struct sipe_media_call_private *call_privat
 			sipe_session_close(call_private->sipe_private, session);
 	}
 
-	sipe_media_hangup(call_private);
+	sipe_backend_media_hangup(SIPE_MEDIA_CALL->backend_private, FALSE);
 }
 
 gboolean sipe_media_is_conference_call(struct sipe_media_call_private *call_private)

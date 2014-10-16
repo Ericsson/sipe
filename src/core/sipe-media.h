@@ -45,13 +45,6 @@ void process_incoming_cancel_call(struct sipe_core_private *sipe_private,
 				  struct sipmsg *msg);
 
 /**
- * Hangs up a media session and closes all allocated resources.
- *
- * @param sipe_private (in) media call data.
- */
-void sipe_media_hangup(struct sipe_media_call_private *call_private);
-
-/**
  * Call before SIP account logs of the server. Function hangs up the call and
  * notifies remote participant according to the actual state of call
  * negotiation.
