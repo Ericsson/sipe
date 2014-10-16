@@ -87,6 +87,7 @@ struct sipe_file_transfer {
 			 gsize size);
 	gboolean (* end)(struct sipe_file_transfer *ft);
 	void (* user_rejected)(struct sipe_file_transfer *ft);
+	void (* cancelled)(struct sipe_file_transfer *ft, gboolean local);
 	void (* deallocate)(struct sipe_file_transfer *ft);
 };
 
