@@ -65,7 +65,8 @@ void process_incoming_bye(struct sipe_core_private *sipe_private,
 #ifdef HAVE_VV
 	if (is_media_session_msg(sipe_private->media_call, msg)) {
 		// BYE ends a media call
-		sipe_media_hangup(sipe_private->media_call);
+		sipe_backend_media_hangup(((struct sipe_media_call *)sipe_private->media_call)->backend_private,
+					  FALSE);
 	}
 #endif
 
