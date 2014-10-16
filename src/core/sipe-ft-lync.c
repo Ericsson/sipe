@@ -41,6 +41,23 @@
 #include "sipe-xml.h"
 #include "sipmsg.h"
 
+struct sipe_file_transfer_lync {
+	struct sipe_file_transfer public;
+
+	gchar *sdp;
+	gchar *file_name;
+	gchar *id;
+	gsize file_size;
+	guint request_id;
+
+	guint expecting_len;
+
+	struct sipe_core_private *sipe_private;
+	struct sip_dialog *dialog;
+};
+#define SIPE_FILE_TRANSFER         ((struct sipe_file_transfer *) ft_private)
+#define SIPE_FILE_TRANSFER_PRIVATE ((struct sipe_file_transfer_lync *) ft)
+
 static void
 sipe_file_transfer_lync_free(struct sipe_file_transfer_lync *ft_private)
 {
