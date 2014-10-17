@@ -280,6 +280,10 @@ ft_lync_incoming_end(struct sipe_file_transfer *ft)
 
 	g_free(body);
 
+	/* We still need our filetransfer structure so don't let backend
+	 * deallocate it. */
+	ft->deallocate = NULL;
+
 	return TRUE;
 }
 
@@ -427,7 +431,11 @@ process_response(struct sipe_file_transfer_lync *ft_private, sipe_xml *xml)
 	}
 
 	code = sipe_xml_attribute(xml, "code");
-	if (sipe_strequal(code, "failure")) {
+	if (sipe_strequal(code, "success")) {
+		/* Don't hang up the call ourselves, we'll receive BYE from the
+		 * sender. */
+		sipe_file_transfer_lync_free(ft_private);
+	} else if (sipe_strequal(code, "failure")) {
 		const gchar *reason = sipe_xml_attribute(xml, "reason");
 		if (sipe_strequal(reason, "requestCancelled")) {
 			sipe_backend_ft_cancel_remote(SIPE_FILE_TRANSFER);
