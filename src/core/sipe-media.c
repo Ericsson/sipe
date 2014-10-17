@@ -75,6 +75,10 @@ struct sipe_media_stream_private {
 
 	guchar *encryption_key;
 	gboolean remote_candidates_and_codecs_set;
+
+	/* Arbitrary data associated with the stream. */
+	gpointer data;
+	GDestroyNotify data_free_func;
 };
 #define SIPE_MEDIA_STREAM         ((struct sipe_media_stream *) stream_private)
 #define SIPE_MEDIA_STREAM_PRIVATE ((struct sipe_media_stream_private *) stream)
@@ -99,6 +103,9 @@ remove_stream(struct sipe_media_call* call,
 	      struct sipe_media_stream_private *stream_private)
 {
 	struct sipe_media_call_private *call_private = SIPE_MEDIA_CALL_PRIVATE;
+
+	sipe_media_stream_set_data(SIPE_MEDIA_STREAM, NULL, NULL);
+
 	call_private->streams =
 			g_slist_remove(call_private->streams, stream_private);
 	sipe_backend_media_stream_free(SIPE_MEDIA_STREAM->backend_private);
@@ -1806,27 +1813,6 @@ sipe_media_get_av_edge_credentials(struct sipe_core_private *sipe_private)
 			      process_get_av_edge_credentials_response);
 
 	g_free(body);
-}
-
-void
-sipe_media_add_extra_invite_section(struct sipe_media_call *call,
-				    const gchar *invite_content_type,
-				    gchar *body)
-{
-	g_free(SIPE_MEDIA_CALL_PRIVATE->extra_invite_section);
-	g_free(SIPE_MEDIA_CALL_PRIVATE->invite_content_type);
-	SIPE_MEDIA_CALL_PRIVATE->extra_invite_section = body;
-	SIPE_MEDIA_CALL_PRIVATE->invite_content_type =
-			g_strdup(invite_content_type);
-}
-
-void
-sipe_media_stream_add_extra_attribute(struct sipe_media_stream *stream,
-				      const gchar *name, const gchar *value)
-{
-	SIPE_MEDIA_STREAM_PRIVATE->extra_sdp =
-			sipe_utils_nameval_add(SIPE_MEDIA_STREAM_PRIVATE->extra_sdp,
-					       name, value);
 }
 
 void
