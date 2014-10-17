@@ -103,6 +103,13 @@ gboolean is_media_session_msg(struct sipe_media_call_private *call_private,
  */
 void sipe_media_get_av_edge_credentials(struct sipe_core_private *sipe_private);
 
+void
+sipe_media_stream_set_data(struct sipe_media_stream *stream, gpointer data,
+			   GDestroyNotify free_func);
+
+gpointer
+sipe_media_stream_get_data(struct sipe_media_stream *stream);
+
 /**
  * Associates a file transfer structure with the media call.
  *
