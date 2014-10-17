@@ -160,17 +160,19 @@ mime_mixed_cb(gpointer user_data, const GSList *fields, const gchar *body,
 }
 
 static void
-candidate_pair_established_cb(struct sipe_media_call *call,
-			      SIPE_UNUSED_PARAMETER struct sipe_media_stream *stream)
+candidate_pair_established_cb(SIPE_UNUSED_PARAMETER struct sipe_media_call *call,
+			      struct sipe_media_stream *stream)
 {
-	request_download_file(sipe_media_get_file_transfer(call));
+	g_return_if_fail(sipe_strequal(stream->id, "data"));
+
+	request_download_file(sipe_media_stream_get_data(stream));
 }
 
 static void
 read_cb(struct sipe_media_call *call, struct sipe_media_stream *stream)
 {
 	struct sipe_file_transfer_lync *ft_data =
-			sipe_media_get_file_transfer(call);
+			sipe_media_stream_get_data(stream);
 	guint8 buffer[0x800];
 
 	if (ft_data->was_cancelled) {
@@ -235,11 +237,21 @@ ft_lync_incoming_init(struct sipe_file_transfer *ft,
 	}
 }
 
+static struct sipe_file_transfer_lync *
+ft_private_form_call(struct sipe_media_call *call)
+{
+	struct sipe_media_stream *stream =
+			sipe_core_media_get_stream_by_id(call, "data");
+	g_return_val_if_fail(stream, NULL);
+
+	return sipe_media_stream_get_data(stream);
+}
+
 static void
 call_reject_cb(struct sipe_media_call *call, gboolean local)
 {
-	struct sipe_file_transfer_lync *ft_private =
-			sipe_media_get_file_transfer(call);
+	struct sipe_file_transfer_lync *ft_private = ft_private_form_call(call);
+	g_return_if_fail(ft_private);
 
 	if (ft_private->call_reject_parent_cb) {
 		ft_private->call_reject_parent_cb(call, local);
@@ -293,7 +305,7 @@ request_cancelled_cb(struct sipe_core_private *sipe_private,
 		     SIPE_UNUSED_PARAMETER struct transaction *trans)
 {
 	struct sipe_file_transfer_lync *ft_private =
-			sipe_media_get_file_transfer((struct sipe_media_call *)sipe_private->media_call);
+			ft_private_form_call((struct sipe_media_call *)sipe_private->media_call);
 
 	ft_lync_deallocate(SIPE_FILE_TRANSFER);
 
@@ -306,7 +318,7 @@ cancel_transfer_cb(struct sipe_core_private *sipe_private,
 		   SIPE_UNUSED_PARAMETER struct transaction *trans)
 {
 	struct sipe_file_transfer_lync *ft_private =
-			sipe_media_get_file_transfer((struct sipe_media_call *)sipe_private->media_call);
+			ft_private_form_call((struct sipe_media_call *)sipe_private->media_call);
 
 	static const gchar *FILETRANSFER_CANCEL_RESPONSE =
 			"<response xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\" code=\"failure\" reason=\"requestCancelled\"/>";
@@ -376,6 +388,7 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 {
 	struct sipe_file_transfer_lync *ft_private;
 	struct sipe_media_call *call;
+	struct sipe_media_stream *stream;
 	struct sip_session *session = NULL;
 
 	ft_private = g_new0(struct sipe_file_transfer_lync, 1);
@@ -412,7 +425,8 @@ process_incoming_invite_ft_lync(struct sipe_core_private *sipe_private,
 	ft_private->public.cancelled = ft_lync_incoming_cancelled;
 	ft_private->public.deallocate = ft_lync_deallocate;
 
-	sipe_media_set_file_transfer(call, ft_private);
+	stream = sipe_core_media_get_stream_by_id(call, "data");
+	sipe_media_stream_set_data(stream, ft_private, NULL);
 
 	sipe_backend_ft_incoming(SIPE_CORE_PUBLIC,
 				 (struct sipe_file_transfer *)ft_private,
@@ -454,7 +468,7 @@ process_incoming_info_ft_lync(struct sipe_core_private *sipe_private,
 		return;
 	}
 
-	ft_private = sipe_media_get_file_transfer((struct sipe_media_call *)sipe_private->media_call);
+	ft_private = ft_private_form_call((struct sipe_media_call *)sipe_private->media_call);
 	if (!ft_private) {
 		return;
 	}
