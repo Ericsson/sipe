@@ -954,16 +954,38 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 	struct sipe_backend_media_stream *backend_stream;
 	struct sipe_backend_media_relays *backend_media_relays;
 	int i;
+	guint min_port = sipe_private->min_media_port;
+	guint max_port = sipe_private->max_media_port;
 
 	backend_media_relays = sipe_backend_media_relays_convert(
 						sipe_private->media_relays,
 						sipe_private->media_relay_username,
 						sipe_private->media_relay_password);
 
+	switch (type) {
+		case SIPE_MEDIA_AUDIO:
+			min_port = sipe_private->min_audio_port;
+			max_port = sipe_private->max_audio_port;
+			break;
+		case SIPE_MEDIA_VIDEO:
+			min_port = sipe_private->min_video_port;
+			max_port = sipe_private->max_audio_port;
+			break;
+		case SIPE_MEDIA_APPLICATION:
+			if (sipe_strequal(id, "data")) {
+				min_port = sipe_private->min_filetransfer_port;
+				max_port = sipe_private->max_filetransfer_port;
+			} else if (sipe_strequal(id, "applicationsharing")) {
+				min_port = sipe_private->min_appsharing_port;
+				max_port = sipe_private->max_appsharing_port;
+			}
+			break;
+	}
 
 	backend_stream = sipe_backend_media_add_stream(SIPE_MEDIA_CALL,
 						id, with, type, ice_version,
-						initiator, backend_media_relays);
+						initiator, backend_media_relays,
+						min_port, max_port);
 
 	sipe_backend_media_relays_free(backend_media_relays);
 
