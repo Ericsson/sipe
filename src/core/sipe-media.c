@@ -995,6 +995,35 @@ sipe_data_session_new(struct sipe_core_private *sipe_private,
 	return create_media(sipe_private, with, initiator, ice_version, TRUE);
 }
 
+static struct sipe_media_call_private *
+create_media_outgoing(struct sipe_core_private *sipe_private, const gchar* with,
+		      gboolean initiator, SipeIceVersion ice_version,
+		      gboolean hidden_from_ui)
+{
+	struct sipe_media_call_private *call_private =
+			create_media(sipe_private, with, initiator, ice_version,
+				     hidden_from_ui);
+	struct sip_session *session = sipe_session_add_call(sipe_private, with);
+	struct sip_dialog *dialog = sipe_dialog_add(session);
+
+	dialog->callid = gencallid();
+	dialog->with = g_strdup(session->with);
+	dialog->ourtag = gentag();
+
+	SIPE_MEDIA_CALL->with = g_strdup(with);
+
+	return call_private;
+}
+
+static struct sipe_media_call_private *
+sipe_media_call_new_outgoing(struct sipe_core_private *sipe_private,
+			     const gchar* with, gboolean initiator,
+			     SipeIceVersion ice_version)
+{
+	return create_media_outgoing(sipe_private, with, initiator, ice_version,
+				     FALSE);
+}
+
 static gboolean
 sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 		      const gchar *with, SipeMediaType type,
@@ -1066,23 +1095,13 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 			 gboolean with_video)
 {
 	struct sipe_media_call_private *call_private;
-	struct sip_session *session;
-	struct sip_dialog *dialog;
 
 	if (sipe_private->media_call)
 		return;
 
-	call_private = sipe_media_call_new(sipe_private, with, TRUE,
-					   ice_version);
+	call_private = sipe_media_call_new_outgoing(sipe_private, with, TRUE,
+						    ice_version);
 	sipe_private->media_call = call_private;
-
-	session = sipe_session_add_call(sipe_private, with);
-	dialog = sipe_dialog_add(session);
-	dialog->callid = gencallid();
-	dialog->with = g_strdup(session->with);
-	dialog->ourtag = gentag();
-
-	SIPE_MEDIA_CALL->with = g_strdup(session->with);
 
 	if (!sipe_media_stream_add(sipe_private, "audio", with, SIPE_MEDIA_AUDIO,
 				   call_private->ice_version,
@@ -1151,21 +1170,13 @@ void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 	ice_version = SIPE_CORE_PRIVATE_FLAG_IS(LYNC2013) ? SIPE_ICE_RFC_5245 :
 							    SIPE_ICE_DRAFT_6;
 
-	call_private = sipe_media_call_new(sipe_private, av_uri, TRUE,
-					   ice_version);
+	call_private = sipe_media_call_new_outgoing(sipe_private, av_uri, TRUE,
+						    ice_version);
 	sipe_private->media_call = call_private;
-
-	session = sipe_session_add_call(sipe_private, av_uri);
-	dialog = sipe_dialog_add(session);
-	dialog->callid = gencallid();
-	dialog->with = g_strdup(session->with);
-	dialog->ourtag = gentag();
 
 	g_free(av_uri);
 
-	SIPE_MEDIA_CALL->with = g_strdup(session->with);
-
-	if (!sipe_media_stream_add(sipe_private, "audio", dialog->with,
+	if (!sipe_media_stream_add(sipe_private, "audio", av_uri,
 				   SIPE_MEDIA_AUDIO, call_private->ice_version,
 				   TRUE)) {
 		sipe_backend_notify_error(sipe_public,
