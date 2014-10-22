@@ -143,6 +143,11 @@ gboolean is_media_session_msg(struct sipe_media_call_private *call_private,
 void sipe_media_get_av_edge_credentials(struct sipe_core_private *sipe_private);
 
 void
+sipe_media_add_extra_invite_section(struct sipe_media_call *call,
+				    const gchar *invite_content_type,
+				    gchar *body);
+
+void
 sipe_media_stream_set_data(struct sipe_media_stream *stream, gpointer data,
 			   GDestroyNotify free_func);
 

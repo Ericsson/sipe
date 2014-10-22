@@ -60,6 +60,8 @@ struct sipe_media_call_private {
 	struct sipmsg			*invitation;
 	SipeIceVersion			 ice_version;
 	gboolean			 encryption_compatible;
+	gchar				*extra_invite_section;
+	gchar				*invite_content_type;
 
 	struct sdpmsg			*smsg;
 	GSList				*failed_media;
@@ -1814,6 +1816,18 @@ sipe_media_get_av_edge_credentials(struct sipe_core_private *sipe_private)
 			      process_get_av_edge_credentials_response);
 
 	g_free(body);
+}
+
+void
+sipe_media_add_extra_invite_section(struct sipe_media_call *call,
+				    const gchar *invite_content_type,
+				    gchar *body)
+{
+	g_free(SIPE_MEDIA_CALL_PRIVATE->extra_invite_section);
+	g_free(SIPE_MEDIA_CALL_PRIVATE->invite_content_type);
+	SIPE_MEDIA_CALL_PRIVATE->extra_invite_section = body;
+	SIPE_MEDIA_CALL_PRIVATE->invite_content_type =
+			g_strdup(invite_content_type);
 }
 
 void
