@@ -1024,12 +1024,13 @@ sipe_media_call_new_outgoing(struct sipe_core_private *sipe_private,
 				     FALSE);
 }
 
-static gboolean
-sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
-		      const gchar *with, SipeMediaType type,
-		      SipeIceVersion ice_version, gboolean initiator)
+struct sipe_media_stream *
+sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
+		      SipeMediaType type, SipeIceVersion ice_version,
+		      gboolean initiator)
 {
-	struct sipe_media_call_private *call_private = sipe_private->media_call;
+	struct sipe_media_call_private *call_private = SIPE_MEDIA_CALL_PRIVATE;
+	struct sipe_core_private *sipe_private = call_private->sipe_private;
 	struct sipe_media_stream_private *stream_private;
 	struct sipe_backend_media_stream *backend_stream;
 	struct sipe_backend_media_relays *backend_media_relays;
@@ -1063,14 +1064,15 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 	}
 
 	backend_stream = sipe_backend_media_add_stream(SIPE_MEDIA_CALL,
-						id, with, type, ice_version,
-						initiator, backend_media_relays,
-						min_port, max_port);
+						       id, call->with, type,
+						       ice_version, initiator,
+						       backend_media_relays,
+						       min_port, max_port);
 
 	sipe_backend_media_relays_free(backend_media_relays);
 
 	if (!backend_stream) {
-		return FALSE;
+		return NULL;
 	}
 
 	stream_private = g_new0(struct sipe_media_stream_private, 1);
@@ -1086,7 +1088,7 @@ sipe_media_stream_add(struct sipe_core_private *sipe_private, const gchar *id,
 			g_slist_append(sipe_private->media_call->streams,
 				       stream_private);
 
-	return TRUE;
+	return SIPE_MEDIA_STREAM;
 }
 
 static void
@@ -1103,7 +1105,7 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 						    ice_version);
 	sipe_private->media_call = call_private;
 
-	if (!sipe_media_stream_add(sipe_private, "audio", with, SIPE_MEDIA_AUDIO,
+	if (!sipe_media_stream_add(SIPE_MEDIA_CALL, "audio", SIPE_MEDIA_AUDIO,
 				   call_private->ice_version,
 				   TRUE)) {
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
@@ -1176,9 +1178,8 @@ void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 
 	g_free(av_uri);
 
-	if (!sipe_media_stream_add(sipe_private, "audio", av_uri,
-				   SIPE_MEDIA_AUDIO, call_private->ice_version,
-				   TRUE)) {
+	if (!sipe_media_stream_add(SIPE_MEDIA_CALL, "audio", SIPE_MEDIA_AUDIO,
+				   call_private->ice_version, TRUE)) {
 		sipe_backend_notify_error(sipe_public,
 					  _("Error occured"),
 					  _("Error creating audio stream"));
@@ -1319,8 +1320,6 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 
 		if (   media->port != 0
 		    && !sipe_core_media_get_stream_by_id(SIPE_MEDIA_CALL, id)) {
-			gchar *with;
-
 			if (sipe_strequal(id, "audio"))
 				type = SIPE_MEDIA_AUDIO;
 			else if (sipe_strequal(id, "video"))
@@ -1332,20 +1331,8 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 			else
 				continue;
 
-			stream = sipe_media_stream_add(SIPE_MEDIA_CALL, id, type,
-						       smsg->ice_version, FALSE);
-
-			if (sipe_strequal(id, "data")) {
-				sipe_media_stream_add_extra_attribute(stream, "recvonly", NULL);
-			} else if (sipe_strequal(id, "applicationsharing")) {
-				sipe_media_stream_add_extra_attribute(stream,
-						"x-applicationsharing-session-id", "1");
-				sipe_media_stream_add_extra_attribute(stream,
-						"x-applicationsharing-role", "viewer");
-				sipe_media_stream_add_extra_attribute(stream,
-						"x-applicationsharing-media-type", "rdp");
-			}
-
+			sipe_media_stream_add(SIPE_MEDIA_CALL, id, type,
+					      smsg->ice_version, FALSE);
 			has_new_media = TRUE;
 		}
 	}
