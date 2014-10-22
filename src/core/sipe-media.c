@@ -533,9 +533,6 @@ sipe_invite_call(struct sipe_core_private *sipe_private, TransCallback tc)
 
 	session = sipe_session_find_call(sipe_private, call_private->public.with);
 	dialog = session->dialogs->data;
-	add_2007_fallback = dialog->cseq == 0 &&
-		call_private->ice_version == SIPE_ICE_RFC_5245 &&
-		!sipe_strequal(call_private->public.with, sipe_private->test_call_bot_uri);
 
 	contact = get_contact(sipe_private);
 
@@ -1091,6 +1088,32 @@ sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 				       stream_private);
 
 	return SIPE_MEDIA_STREAM;
+}
+
+static void
+append_proxy_fallback_invite_if_needed(struct sipe_media_call_private *call_private)
+{
+	struct sipe_core_private *sipe_private = call_private->sipe_private;
+	const gchar *ip = sipe_backend_network_ip_address(SIPE_CORE_PUBLIC);
+	gchar *body;
+
+	if (sipe_media_get_sip_dialog(SIPE_MEDIA_CALL)->cseq != 0 ||
+	    call_private->ice_version != SIPE_ICE_RFC_5245 ||
+	    sipe_strequal(SIPE_MEDIA_CALL->with, sipe_private->test_call_bot_uri)) {
+		return;
+	}
+
+	body = g_strdup_printf("Content-Type: application/sdp\r\n"
+			       "Content-Transfer-Encoding: 7bit\r\n"
+			       "Content-Disposition: session; handling=optional; ms-proxy-2007fallback\r\n"
+			       "\r\n"
+			       "o=- 0 0 IN IP4 %s\r\n"
+			       "s=session\r\n"
+			       "c=IN IP4 %s\r\n"
+			       "m=audio 0 RTP/AVP\r\n",
+			       ip, ip);
+	sipe_media_add_extra_invite_section(SIPE_MEDIA_CALL,
+					    "multipart/alternative",body);
 }
 
 static void
