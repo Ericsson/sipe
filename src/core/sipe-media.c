@@ -1103,7 +1103,6 @@ sipe_media_initiate_call(struct sipe_core_private *sipe_private,
 
 	call_private = sipe_media_call_new_outgoing(sipe_private, with, TRUE,
 						    ice_version);
-	sipe_private->media_call = call_private;
 
 	if (!sipe_media_stream_add(SIPE_MEDIA_CALL, "audio", SIPE_MEDIA_AUDIO,
 				   call_private->ice_version,
@@ -1174,7 +1173,6 @@ void sipe_core_media_connect_conference(struct sipe_core_public *sipe_public,
 
 	call_private = sipe_media_call_new_outgoing(sipe_private, av_uri, TRUE,
 						    ice_version);
-	sipe_private->media_call = call_private;
 
 	g_free(av_uri);
 
@@ -1304,7 +1302,6 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 		sipe_media_dialog_init(session, msg);
 
 		call_private->public.with = g_strdup(session->with);
-		sipe_private->media_call = call_private;
 		g_free(with);
 	}
 
