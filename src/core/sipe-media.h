@@ -148,6 +148,10 @@ sipe_media_add_extra_invite_section(struct sipe_media_call *call,
 				    gchar *body);
 
 void
+sipe_media_stream_add_extra_attribute(struct sipe_media_stream *stream,
+				      const gchar *name, const gchar *value);
+
+void
 sipe_media_stream_set_data(struct sipe_media_stream *stream, gpointer data,
 			   GDestroyNotify free_func);
 
