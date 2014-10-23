@@ -75,6 +75,8 @@ struct sipe_media_stream_private {
 	guchar *encryption_key;
 	gboolean remote_candidates_and_codecs_set;
 
+	GSList *extra_sdp;
+
 	/* Arbitrary data associated with the stream. */
 	gpointer data;
 	GDestroyNotify data_free_func;
@@ -110,6 +112,7 @@ remove_stream(struct sipe_media_call* call,
 	sipe_backend_media_stream_free(SIPE_MEDIA_STREAM->backend_private);
 	g_free(SIPE_MEDIA_STREAM->id);
 	g_free(stream_private->encryption_key);
+	sipe_utils_nameval_free(stream_private->extra_sdp);
 	g_free(stream_private);
 }
 
@@ -308,6 +311,7 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	GSList *attributes = NULL;
 	GList *candidates;
 	GList *i;
+	GSList *j;
 
 	sdpmedia->name = g_strdup(SIPE_MEDIA_STREAM->id);
 
@@ -392,8 +396,6 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 		g_free(tmp);
 	}
 
-	sdpmedia->attributes = attributes;
-
 	// Process remote candidates
 	candidates = sipe_backend_media_get_active_remote_candidates(SIPE_MEDIA_CALL,
 								     SIPE_MEDIA_STREAM);
@@ -424,9 +426,18 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 				break;
 		}
 
-		sdpmedia->attributes = sipe_utils_nameval_add(sdpmedia->attributes,
-							      "encryption", encryption);
+		attributes = sipe_utils_nameval_add(attributes,
+						    "encryption", encryption);
 	}
+
+	// Append extra attributes assigned to the stream.
+	for (j = stream_private->extra_sdp; j; j = g_slist_next(j)) {
+		struct sipnameval *attr = j->data;
+		attributes = sipe_utils_nameval_add(attributes,
+						    attr->name, attr->value);
+	}
+
+	sdpmedia->attributes = attributes;
 
 	return sdpmedia;
 }
@@ -1290,6 +1301,8 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 
 		if (   media->port != 0
 		    && !sipe_core_media_get_stream_by_id(SIPE_MEDIA_CALL, id)) {
+			struct sipe_media_stream *stream;
+
 			if (sipe_strequal(id, "audio"))
 				type = SIPE_MEDIA_AUDIO;
 			else if (sipe_strequal(id, "video"))
@@ -1301,8 +1314,20 @@ process_incoming_invite_call(struct sipe_core_private *sipe_private,
 			else
 				continue;
 
-			sipe_media_stream_add(SIPE_MEDIA_CALL, id, type,
-					      smsg->ice_version, FALSE);
+			stream = sipe_media_stream_add(SIPE_MEDIA_CALL, id, type,
+						       smsg->ice_version, FALSE);
+
+			if (sipe_strequal(id, "data")) {
+				sipe_media_stream_add_extra_attribute(stream, "recvonly", NULL);
+			} else if (sipe_strequal(id, "applicationsharing")) {
+				sipe_media_stream_add_extra_attribute(stream,
+						"x-applicationsharing-session-id", "1");
+				sipe_media_stream_add_extra_attribute(stream,
+						"x-applicationsharing-role", "viewer");
+				sipe_media_stream_add_extra_attribute(stream,
+						"x-applicationsharing-media-type", "rdp");
+			}
+
 			has_new_media = TRUE;
 		}
 	}
@@ -1799,6 +1824,15 @@ sipe_media_add_extra_invite_section(struct sipe_media_call *call,
 	SIPE_MEDIA_CALL_PRIVATE->extra_invite_section = body;
 	SIPE_MEDIA_CALL_PRIVATE->invite_content_type =
 			g_strdup(invite_content_type);
+}
+
+void
+sipe_media_stream_add_extra_attribute(struct sipe_media_stream *stream,
+				      const gchar *name, const gchar *value)
+{
+	SIPE_MEDIA_STREAM_PRIVATE->extra_sdp =
+			sipe_utils_nameval_add(SIPE_MEDIA_STREAM_PRIVATE->extra_sdp,
+					       name, value);
 }
 
 void
