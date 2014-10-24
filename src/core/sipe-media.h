@@ -26,6 +26,11 @@ struct sipe_core_private;
 struct sipe_file_transfer_lync;
 struct sipe_media_call_private;
 
+struct sipe_media_call *
+sipe_data_session_new_outgoing(struct sipe_core_private *sipe_private,
+			       const gchar* with, gboolean initiator,
+			       SipeIceVersion ice_version);
+
 /**
  * Adds a new media stream to a call.
  *

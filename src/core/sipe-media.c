@@ -982,6 +982,17 @@ sipe_media_call_new_outgoing(struct sipe_core_private *sipe_private,
 				     FALSE);
 }
 
+struct sipe_media_call *
+sipe_data_session_new_outgoing(struct sipe_core_private *sipe_private,
+			       const gchar* with, gboolean initiator,
+			       SipeIceVersion ice_version)
+{
+	struct sipe_media_call_private *call_private =
+			create_media_outgoing(sipe_private, with, initiator,
+					      ice_version, TRUE);
+	return SIPE_MEDIA_CALL;
+}
+
 struct sipe_media_stream *
 sipe_media_stream_add(struct sipe_media_call *call, const gchar *id,
 		      SipeMediaType type, SipeIceVersion ice_version,
