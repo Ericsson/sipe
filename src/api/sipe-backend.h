@@ -230,6 +230,10 @@ gssize sipe_backend_ft_write(struct sipe_file_transfer *ft,
 			     const guchar *data,
 			     gsize size);
 
+gssize sipe_backend_ft_read_file(struct sipe_file_transfer *ft,
+				 guchar *data,
+				 gsize size);
+
 gssize sipe_backend_ft_write_file(struct sipe_file_transfer *ft,
 				  const guchar *data,
 				  gsize size);
