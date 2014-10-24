@@ -75,11 +75,22 @@ sipe_file_transfer_lync_free(struct sipe_file_transfer_lync *ft_private)
 	g_free(ft_private);
 }
 
+static void
+send_ms_filetransfer_msg(char *body, struct sipe_file_transfer_lync *ft_private,
+			 TransCallback callback)
+{
+	sip_transport_info(ft_private->sipe_private,
+			   "Content-Type: application/ms-filetransfer+xml\r\n",
+			   body,
+			   ft_private->dialog,
+			   callback);
+
+	g_free(body);
+}
+
 static gboolean
 request_download_file(struct sipe_file_transfer_lync *ft_private)
 {
-	gchar *body;
-
 	static const gchar *SUCCESS_RESPONSE =
 		"<response xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\" code=\"success\"/>";
 
@@ -93,28 +104,15 @@ request_download_file(struct sipe_file_transfer_lync *ft_private)
 			"</downloadFile>"
 		"</request>";
 
-	body = g_strdup_printf(SUCCESS_RESPONSE, ft_private->request_id);
+	send_ms_filetransfer_msg(g_strdup_printf(SUCCESS_RESPONSE,
+						 ft_private->request_id),
+				 ft_private, NULL);
 
-	sip_transport_info(ft_private->sipe_private,
-			   "Content-Type: application/ms-filetransfer+xml\r\n",
-			   body,
-			   ft_private->dialog,
-			   NULL);
-
-	g_free(body);
-
-	body = g_strdup_printf(DOWNLOAD_FILE_REQUEST,
-			       ++ft_private->request_id,
-			       ft_private->id,
-			       ft_private->file_name);
-
-	sip_transport_info(ft_private->sipe_private,
-			   "Content-Type: application/ms-filetransfer+xml\r\n",
-			   body,
-			   ft_private->dialog,
-			   NULL);
-
-	g_free(body);
+	send_ms_filetransfer_msg(g_strdup_printf(DOWNLOAD_FILE_REQUEST,
+						 ++ft_private->request_id,
+						 ft_private->id,
+						 ft_private->file_name),
+				 ft_private, NULL);
 
 	return FALSE;
 }
@@ -279,18 +277,11 @@ ft_lync_incoming_end(struct sipe_file_transfer *ft)
 				"</fileTransferProgress>"
 			"</notify>";
 
-	gchar *body = g_strdup_printf(FILETRANSFER_PROGRESS,
-			       rand(),
-			       ft_private->request_id,
-			       ft_private->file_size - 1);
-
-	sip_transport_info(ft_private->sipe_private,
-			   "Content-Type: application/ms-filetransfer+xml\r\n",
-			   body,
-			   ft_private->dialog,
-			   NULL);
-
-	g_free(body);
+	send_ms_filetransfer_msg(g_strdup_printf(FILETRANSFER_PROGRESS,
+						 rand(),
+						 ft_private->request_id,
+						 ft_private->file_size - 1),
+				 ft_private, NULL);
 
 	/* We still need our filetransfer structure so don't let backend
 	 * deallocate it. */
@@ -322,14 +313,9 @@ cancel_transfer_cb(struct sipe_core_private *sipe_private,
 
 	static const gchar *FILETRANSFER_CANCEL_RESPONSE =
 			"<response xmlns=\"http://schemas.microsoft.com/rtc/2009/05/filetransfer\" requestId=\"%d\" code=\"failure\" reason=\"requestCancelled\"/>";
-	gchar *body = g_strdup_printf(FILETRANSFER_CANCEL_RESPONSE,
-				      ft_private->request_id);
-	sip_transport_info(sipe_private,
-			   "Content-Type: application/ms-filetransfer+xml\r\n",
-			   body,
-			   ft_private->dialog,
-			   request_cancelled_cb);
-	g_free(body);
+	send_ms_filetransfer_msg(g_strdup_printf(FILETRANSFER_CANCEL_RESPONSE,
+						 ft_private->request_id),
+				 ft_private, request_cancelled_cb);
 
 	return TRUE;
 }
@@ -349,18 +335,15 @@ ft_lync_incoming_cancelled(struct sipe_file_transfer *ft, gboolean local)
 			"</request>";
 
 	if (local) {
-		gchar *body = g_strdup_printf(FILETRANSFER_CANCEL_REQUEST,
-					      SIPE_FILE_TRANSFER_PRIVATE->request_id + 1,
-					      SIPE_FILE_TRANSFER_PRIVATE->request_id,
-					      SIPE_FILE_TRANSFER_PRIVATE->id,
-					      SIPE_FILE_TRANSFER_PRIVATE->file_name);
+		struct sipe_file_transfer_lync *ft_private =
+				SIPE_FILE_TRANSFER_PRIVATE;
 
-		sip_transport_info(SIPE_FILE_TRANSFER_PRIVATE->sipe_private,
-				   "Content-Type: application/ms-filetransfer+xml\r\n",
-				   body,
-				   SIPE_FILE_TRANSFER_PRIVATE->dialog,
-				   cancel_transfer_cb);
-		g_free(body);
+		send_ms_filetransfer_msg(g_strdup_printf(FILETRANSFER_CANCEL_REQUEST,
+							 ft_private->request_id + 1,
+							 ft_private->request_id,
+							 ft_private->id,
+							 ft_private->file_name),
+					 ft_private, cancel_transfer_cb);
 
 		SIPE_FILE_TRANSFER_PRIVATE->was_cancelled = TRUE;
 		/* We still need our filetransfer structure so don't let backend
