@@ -129,6 +129,7 @@ void sipe_backend_ft_deallocate(SIPE_UNUSED_PARAMETER struct sipe_file_transfer 
 gssize sipe_backend_ft_write_file(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft,
 				  SIPE_UNUSED_PARAMETER const guchar *data,
 				  SIPE_UNUSED_PARAMETER gsize size) {}
+gboolean sipe_backend_ft_is_completed(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft) {}
 void sipe_backend_ft_cancel_local(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft) {}
 void sipe_backend_ft_cancel_remote(SIPE_UNUSED_PARAMETER struct sipe_file_transfer *ft) {}
 void sipe_backend_ft_incoming(SIPE_UNUSED_PARAMETER struct sipe_core_public *sipe_public,
