@@ -777,6 +777,9 @@ apply_remote_message(struct sipe_media_call_private* call_private,
 	for (i = call_private->failed_media; i; i = i->next) {
 		msg->media = g_slist_remove(msg->media, i->data);
 	}
+
+	/* FALSE if all streams failed - call ends. */
+	return msg->media != NULL;
 }
 
 static gboolean
