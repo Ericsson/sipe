@@ -166,6 +166,11 @@ gssize sipe_backend_ft_write_file(struct sipe_file_transfer *ft,
 	return bytes_written;
 }
 
+gboolean sipe_backend_ft_is_completed(struct sipe_file_transfer *ft)
+{
+	return purple_xfer_is_completed(FT_TO_PURPLE_XFER);
+}
+
 void sipe_backend_ft_cancel_local(struct sipe_file_transfer *ft)
 {
 	purple_xfer_cancel_local(FT_TO_PURPLE_XFER);
