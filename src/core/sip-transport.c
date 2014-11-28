@@ -1144,13 +1144,32 @@ static gboolean process_register_response(struct sipe_core_private *sipe_private
 					}
                                         if (sipe_strcase_equal(elem->name, "Allow-Events")){
 						gchar **caps = g_strsplit(elem->value,",",0);
+						gchar **environ = g_get_environ();
+						const gchar *env_str = g_environ_getenv(environ, "SIPE_EVENTS");
+						gchar **parts = NULL;
+						GSList *enabled_events = NULL;
+						i = 0;
+
+						SIPE_DEBUG_INFO("SIPE_EVENTS: %s", env_str);
+						if (env_str) {
+							parts = g_strsplit(env_str, ",", 0);
+						}
+						while (parts && parts[i]) {
+							enabled_events = g_slist_append(enabled_events, parts[i++]);
+						}
+						g_strfreev(environ);
+						g_free(parts);
+
 						i = 0;
 						while (caps[i]) {
-							sipe_private->allowed_events =  g_slist_append(sipe_private->allowed_events, g_strdup(caps[i]));
-							SIPE_DEBUG_INFO("Allow-Events: %s", caps[i]);
+							if (!enabled_events || g_slist_find_custom(enabled_events, caps[i],(GCompareFunc) g_ascii_strcasecmp)) {
+								sipe_private->allowed_events =  g_slist_append(sipe_private->allowed_events, g_strdup(caps[i]));
+								SIPE_DEBUG_INFO("Allow-Events: %s", caps[i]);
+							}
 							i++;
 						}
 						g_strfreev(caps);
+						g_slist_free_full(enabled_events, g_free);
                                         }
 					if (sipe_strcase_equal(elem->name, "ms-user-logon-data")) {
 						if (sipe_strcase_equal(elem->value, "RemoteUser")) {
