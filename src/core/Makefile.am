@@ -149,6 +149,7 @@ libsipe_core_la_CFLAGS = \
         $(GIO_CFLAGS) \
         $(GIO_UNIX_CFLAGS) \
         $(LOCALE_CPPFLAGS) \
+        $(FREERDP_CFLAGS) \
 	-I$(srcdir)/../api
 
 if !SIPE_OS_WIN32
@@ -199,6 +200,12 @@ libsipe_core_la_SOURCES += sipe-media.h sipe-media.c \
 	sdpmsg.h sdpmsg.c \
 	sipe-ft-lync.h sipe-ft-lync.c \
 	sipe-applicationsharing.h sipe-applicationsharing.c
+
+	libsipe_core_la_CFLAGS += \
+		$(FREERDP_CFLAGS)
+
+	libsipe_core_la_LIBADD = \
+		$(FREERDP_LIBS)
 endif
 
 check_PROGRAMS =
@@ -212,7 +219,8 @@ sipe_xml_tests_LDADD = \
 	$(LIBXML2_LIBS) \
 	$(GLIB_LIBS) \
 	$(GIO_LIBS) \
-	$(GIO_UNIX_LIBS)
+	$(GIO_UNIX_LIBS)\
+	$(FREERDP_LIBS)
 
 check_PROGRAMS += sip_sec_digest_tests
 sip_sec_digest_tests_SOURCES = sip-sec-digest-tests.c
