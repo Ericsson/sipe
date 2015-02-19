@@ -26,6 +26,7 @@
 #include <gio/gunixsocketaddress.h>
 
 #include <stdlib.h>
+#include <server/shadow.h>
 
 #include "sipmsg.h"
 #include "sipe-applicationsharing.h"
@@ -202,7 +203,6 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 
 	if (writable && !appshare->socket) {
 		gchar *socket_path;
-		gchar *cmdline;
 		GSocketAddress *address;
 		GError *error = NULL;
 
@@ -228,14 +228,23 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 		appshare->source_id = g_io_add_watch(appshare->channel, G_IO_IN,
 						    socket_connect_cb, appshare);
 
-		cmdline = g_strdup_printf("xfreerdp /v:%s /sec:rdp",socket_path);
-
-		g_spawn_command_line_async(cmdline, &error);
-		g_assert_no_error(error);
-
-		g_free(cmdline);
+		start_sharing(socket_path);
 		g_free(socket_path);
 	}
+}
+
+/* TODO: Log errors */
+void start_sharing(gchar *freerdp_path)
+{
+    rdpShadowServer* server;
+    server = shadow_server_new();
+    server->ipcSocket = _strdup(freerdp_path);
+    if(!server)
+        return;
+    if(shadow_server_init(server) < 0)
+        return;
+    if(shadow_server_start(server) < 0)
+        return;
 }
 
 static void
@@ -316,7 +325,6 @@ candidate_pair_established_cb(struct sipe_media_call *call,
 			      struct sipe_media_stream *stream)
 {
 	gchar *socket_path;
-	gchar *cmdline;
 	struct sipe_appshare *appshare;
 	GSocketAddress *address;
 	GError *error = NULL;
@@ -329,11 +337,7 @@ candidate_pair_established_cb(struct sipe_media_call *call,
 	}
 
 	socket_path = build_socket_path(call);
-
-	cmdline = g_strdup_printf("freerdp-shadow /ipc-socket:%s -auth",
-				  socket_path);
-	g_spawn_command_line_async(cmdline, &error);
-	g_free(cmdline);
+	start_sharing(socket_path);
 
 	if (error) {
 		struct sipe_core_private *sipe_private =

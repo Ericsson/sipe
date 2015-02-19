@@ -26,3 +26,4 @@ struct sipmsg;
 
 void process_incoming_invite_applicationsharing(struct sipe_core_private *sipe_private,
 						struct sipmsg *msg);
+void start_sharing(gchar* freerdp_path);
