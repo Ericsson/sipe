@@ -201,11 +201,11 @@ libsipe_core_la_SOURCES += sipe-media.h sipe-media.c \
 	sipe-ft-lync.h sipe-ft-lync.c \
 	sipe-applicationsharing.h sipe-applicationsharing.c
 
-	libsipe_core_la_CFLAGS += \
-		$(FREERDP_CFLAGS)
+libsipe_core_la_CFLAGS += \
+	$(FREERDP_CFLAGS)
 
-	libsipe_core_la_LIBADD = \
-		$(FREERDP_LIBS)
+libsipe_core_la_LIBADD = \
+	$(FREERDP_LIBS)
 endif
 
 check_PROGRAMS =
