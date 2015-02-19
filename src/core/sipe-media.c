@@ -422,6 +422,7 @@ media_stream_to_sdpmedia(struct sipe_media_call_private *call_private,
 	if (!candidates) {
 		candidates = sipe_backend_get_local_candidates(SIPE_MEDIA_CALL,
 							       SIPE_MEDIA_STREAM);
+		candidates = remove_wrong_farstream_0_1_tcp_candidates(candidates);
 	}
 
 	sdpmedia->candidates = backend_candidates_to_sdpcandidate(candidates);
