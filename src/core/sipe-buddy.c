@@ -2079,7 +2079,7 @@ struct sipe_backend_buddy_menu *sipe_share_desktop_menu(struct sipe_core_private
 	for (index = 0; index < numMonitors; index++)
 	{
 		gchar *label = g_strdup_printf(_("Monitor_[%d]"),
-								index);
+								index+1);
 		monitor = &monitors[index];
 		menu = sipe_backend_buddy_menu_add(SIPE_CORE_PUBLIC,
 				menu,
