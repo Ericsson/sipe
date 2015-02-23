@@ -26,6 +26,7 @@
 #include <gio/gunixsocketaddress.h>
 
 #include <stdlib.h>
+#include <server/shadow.h>
 
 #include "sipmsg.h"
 #include "sipe-applicationsharing.h"
