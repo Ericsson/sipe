@@ -29,6 +29,7 @@
 #include <time.h>
 
 #include <glib.h>
+#include <server/shadow.h>
 
 #include "sipe-common.h"
 #include "sipmsg.h"
@@ -2066,6 +2067,34 @@ static struct sipe_backend_buddy_menu *buddy_menu_phone(struct sipe_core_public 
 
 	return(menu);
 }
+struct sipe_backend_buddy_menu *sipe_share_desktop_menu(struct sipe_core_private *sipe_private)
+{
+	int width, height,numMonitors,index;
+	MONITOR_DEF* monitor;
+	MONITOR_DEF monitors[16];
+	struct sipe_backend_buddy_menu *menu = sipe_backend_buddy_menu_start(SIPE_CORE_PUBLIC);
+	numMonitors = shadow_enum_monitors(monitors, 16, 0);
+	
+	// List monitors 
+	for (index = 0; index < numMonitors; index++)
+	{
+		gchar *label = g_strdup_printf(_("Monitor_[%d]"),
+								index);
+		monitor = &monitors[index];
+		menu = sipe_backend_buddy_menu_add(SIPE_CORE_PUBLIC,
+				menu,
+				label,
+				SIPE_BUDDY_MENU_SHARE_APPLICATION,
+				GINT_TO_POINTER(index));
+				width = monitor->right - monitor->left;
+				height = monitor->bottom - monitor->top;
+		SIPE_DEBUG_INFO("sipe_core_buddy_share_my_desktop monitor info = [%d] %dx%d\t+%d+%d",
+				index,width,height,monitor->left, monitor->top);
+		g_free(label);
+	}
+	
+	return(menu);
+}
 
 struct sipe_backend_buddy_menu *sipe_core_buddy_create_menu(struct sipe_core_public *sipe_public,
 							    const gchar *buddy_name,
@@ -2196,11 +2225,10 @@ struct sipe_backend_buddy_menu *sipe_core_buddy_create_menu(struct sipe_core_pub
 		}
 	}
 
-	menu = sipe_backend_buddy_menu_add(sipe_public,
-					   menu,
-					   _("Share my desktop"),
-					   SIPE_BUDDY_MENU_SHARE_APPLICATION,
-					   NULL);
+	menu = sipe_backend_buddy_sub_menu_add(sipe_public,
+                                                       menu,
+                                                       _("Share my desktop"),
+                                                       sipe_share_desktop_menu(sipe_private));
 
 	/* access level control */
 	if (SIPE_CORE_PRIVATE_FLAG_IS(OCS2007))

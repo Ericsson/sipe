@@ -459,6 +459,7 @@ sipe_core_ft_lync_create_outgoing(struct sipe_core_public *sipe_public);
 /* application sharing */
 
 void sipe_core_share_application(struct sipe_core_public *sipe_public,
+				 int index,
 				 const gchar *who);
 
 /* group chat */

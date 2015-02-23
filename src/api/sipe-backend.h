@@ -373,6 +373,7 @@ struct sipe_media_call {
 	struct sipe_backend_media *backend_private;
 
 	gchar *with;
+	int monitor;
 
 	void (*stream_initialized_cb)(struct sipe_media_call *,
 				      struct sipe_media_stream *);

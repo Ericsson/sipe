@@ -670,6 +670,7 @@ static void sipe_purple_buddy_share_application_cb(PurpleBuddy *buddy,
 			purple_buddy_get_name(buddy));
 
 	sipe_core_share_application(PURPLE_BUDDY_TO_SIPE_CORE_PUBLIC,
+				    GPOINTER_TO_INT(parameter),
 				    purple_buddy_get_name(buddy));
 }
 

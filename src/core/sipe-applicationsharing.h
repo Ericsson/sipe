@@ -19,11 +19,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <server/shadow.h>
 
 /* Forward declarations */
 struct sipe_core_private;
 struct sipmsg;
+struct sipe_media_call;
 
 void process_incoming_invite_applicationsharing(struct sipe_core_private *sipe_private,
 						struct sipmsg *msg);
-void start_sharing(gchar* freerdp_path);
+void start_sharing(struct sipe_media_call *call, gchar* freerdp_path, int MonitorIndex);
+

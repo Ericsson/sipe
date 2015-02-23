@@ -26,7 +26,6 @@
 #include <gio/gunixsocketaddress.h>
 
 #include <stdlib.h>
-#include <server/shadow.h>
 
 #include "sipmsg.h"
 #include "sipe-applicationsharing.h"
@@ -205,6 +204,7 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 		gchar *socket_path;
 		GSocketAddress *address;
 		GError *error = NULL;
+		int MonitorNum = 0 ;
 
 		socket_path = build_socket_path(call);
 
@@ -227,26 +227,33 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 		appshare->channel = g_io_channel_unix_new(g_socket_get_fd(appshare->socket));
 		appshare->source_id = g_io_add_watch(appshare->channel, G_IO_IN,
 						    socket_connect_cb, appshare);
-
-		start_sharing(socket_path);
+		MonitorNum = call->monitor;
+		start_sharing(call, socket_path, MonitorNum);
 		g_free(socket_path);
 	}
 }
 
-/* TODO: Log errors */
-void start_sharing(gchar *freerdp_path)
+void start_sharing(struct sipe_media_call *call, char *freerdp_path, int MonitorIndex)
 {
-    rdpShadowServer* server;
-    server = shadow_server_new();
-    server->ipcSocket = _strdup(freerdp_path);
-    if(!server)
-        return;
-    if(shadow_server_init(server) < 0)
-        return;
-    if(shadow_server_start(server) < 0)
-        return;
+	rdpShadowServer* server;
+	struct sipe_core_private *sipe_private = sipe_media_get_sipe_core_private(call);
+	server = shadow_server_new();
+	server->ipcSocket = _strdup(freerdp_path);
+    	server->selectedMonitor = MonitorIndex;
+	if(!server)
+		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
+                                _("Application sharing error"),
+                                _("server is NULL"));
+	if(shadow_server_init(server) < 0)
+		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
+                                _("Application sharing error"),
+                                _("Couldn't initialize shadow server"));		
+	if(shadow_server_start(server) < 0)
+		 sipe_backend_notify_error(SIPE_CORE_PUBLIC,
+                                _("Application sharing error"),
+                                _("Couldn't start shadow server"));
+		
 }
-
 static void
 accept_cb(SIPE_UNUSED_PARAMETER struct sipe_core_private *sipe_private,
 	  gpointer data)
@@ -328,6 +335,7 @@ candidate_pair_established_cb(struct sipe_media_call *call,
 	struct sipe_appshare *appshare;
 	GSocketAddress *address;
 	GError *error = NULL;
+	int MonitorNum = 0 ;
 
 	g_return_if_fail(sipe_strequal(stream->id, "applicationsharing"));
 
@@ -337,7 +345,8 @@ candidate_pair_established_cb(struct sipe_media_call *call,
 	}
 
 	socket_path = build_socket_path(call);
-	start_sharing(socket_path);
+	MonitorNum = call->monitor;
+	start_sharing(call, socket_path, MonitorNum);
 
 	if (error) {
 		struct sipe_core_private *sipe_private =
@@ -380,6 +389,7 @@ candidate_pair_established_cb(struct sipe_media_call *call,
 
 void
 sipe_core_share_application(struct sipe_core_public *sipe_public,
+		            int	index,
 			    const gchar *who)
 {
 	struct sipe_media_call *call;
@@ -395,6 +405,7 @@ sipe_core_share_application(struct sipe_core_public *sipe_public,
 
 	call->candidate_pair_established_cb = candidate_pair_established_cb;
 	call->read_cb = read_cb;
+	call->monitor = index;
 
 	SIPE_CORE_PRIVATE->media_call = (struct sipe_media_call_private *)call;
 
