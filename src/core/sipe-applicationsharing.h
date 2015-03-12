@@ -28,4 +28,4 @@ struct sipe_media_call;
 void process_incoming_invite_applicationsharing(struct sipe_core_private *sipe_private,
 						struct sipmsg *msg);
 void start_sharing(struct sipe_media_call *call, gchar* freerdp_path, int MonitorIndex);
-
+void accept_sharing(gchar* sharing_path);

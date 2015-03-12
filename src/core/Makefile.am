@@ -150,6 +150,7 @@ libsipe_core_la_CFLAGS = \
         $(GIO_UNIX_CFLAGS) \
         $(LOCALE_CPPFLAGS) \
         $(FREERDP_CFLAGS) \
+	$(XFREERDP_CFLAGS) \
 	-I$(srcdir)/../api
 
 if !SIPE_OS_WIN32
@@ -202,10 +203,12 @@ libsipe_core_la_SOURCES += sipe-media.h sipe-media.c \
 	sipe-applicationsharing.h sipe-applicationsharing.c
 
 libsipe_core_la_CFLAGS += \
-	$(FREERDP_CFLAGS)
+	$(FREERDP_CFLAGS) \
+	$(XFREERDP_CFLAGS)
 
 libsipe_core_la_LIBADD = \
-	$(FREERDP_LIBS)
+	$(FREERDP_LIBS) \
+	$(XFREERDP_LIBS)
 endif
 
 check_PROGRAMS =

@@ -215,6 +215,9 @@ PKG_CHECK_MODULES(GIO_UNIX, [gio-unix-2.0])
 dnl check for freerdp
 PKG_CHECK_MODULES(FREERDP, [freerdp])
 
+dnl check for xfreerdp
+PKG_CHECK_MODULES(XFREERDP, [xfreerdp])
+
 dnl check for gmime
 dnl See also: https://bugzilla.gnome.org/show_bug.cgi?id=613653#c8
 PKG_CHECK_MODULES(GMIME, [gmime-2.6 >= 2.5.2],

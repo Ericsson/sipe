@@ -28,6 +28,9 @@
 #include <stdlib.h>
 #include <server/shadow.h>
 
+#include <client/xf_client.h>
+#include <client/xfreerdp.h>
+
 #include "sipmsg.h"
 #include "sipe-applicationsharing.h"
 #include "sipe-backend.h"
@@ -205,7 +208,6 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 		gchar *socket_path;
 		GSocketAddress *address;
 		GError *error = NULL;
-		int MonitorNum = 0 ;
 
 		socket_path = build_socket_path(call);
 
@@ -228,8 +230,7 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 		appshare->channel = g_io_channel_unix_new(g_socket_get_fd(appshare->socket));
 		appshare->source_id = g_io_add_watch(appshare->channel, G_IO_IN,
 						    socket_connect_cb, appshare);
-		MonitorNum = call->monitor;
-		start_sharing(call, socket_path, MonitorNum);
+		accept_sharing(socket_path);
 		g_free(socket_path);
 	}
 }
@@ -255,6 +256,28 @@ void start_sharing(struct sipe_media_call *call, char *freerdp_path, int Monitor
                                 _("Couldn't start shadow server"));
 		
 }
+void accept_sharing(gchar* sharing_path)
+{
+	RDP_CLIENT_ENTRY_POINTS clientEntryPoints;
+	rdpContext* context;
+
+	ZeroMemory(&clientEntryPoints, sizeof(RDP_CLIENT_ENTRY_POINTS));
+	clientEntryPoints.Size = sizeof(RDP_CLIENT_ENTRY_POINTS);
+	clientEntryPoints.Version = RDP_CLIENT_INTERFACE_VERSION;
+
+	RdpClientEntry(&clientEntryPoints);
+
+	context = freerdp_client_context_new(&clientEntryPoints);
+		
+	context->settings->ServerHostname = _strdup(sharing_path);
+	context->settings->RdpSecurity = TRUE;
+	context->settings->TlsSecurity = FALSE;
+	context->settings->NlaSecurity = FALSE;
+	context->settings->ExtSecurity = FALSE;
+	
+	freerdp_client_start(context);
+}
+
 static void
 accept_cb(SIPE_UNUSED_PARAMETER struct sipe_core_private *sipe_private,
 	  gpointer data)
