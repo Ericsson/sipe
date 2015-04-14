@@ -274,7 +274,8 @@ void add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowSer
 	{ 
 		if(temp->user_name == new_user && temp->server != NULL )
 		{
-			g_strdup_printf("User already exist or already shared");
+			g_strdup_printf("Screensharing already started with user");
+                        free(new_entry);
 	       		return;
 		}
 		else
@@ -292,7 +293,6 @@ void delete_user(struct monitor_sharing **list, const gchar *user_name)
 	if (temp != NULL && temp->user_name == user_name)
 	{
         	*list = temp->next;   
-		temp->server = NULL;
 		free(temp);
         	return;
     	}
@@ -303,12 +303,11 @@ void delete_user(struct monitor_sharing **list, const gchar *user_name)
 	}
 	if (temp == NULL) 
 	{
-		g_strdup_printf("User list is NULL");				
+		g_strdup_printf("Error: Unable to find the screensharing structure to stop!!!");				
 		return;
 	}
 	
 	prev->next = temp->next;
-	temp->server =  NULL;
 	free(temp);  
 }
 void start_sharing(struct sipe_media_call *call, char *freerdp_path, int MonitorIndex)
