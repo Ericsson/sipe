@@ -26,10 +26,10 @@
 #include <gio/gunixsocketaddress.h>
 
 #include <stdlib.h>
-#include <server/shadow.h>
 
 #include <client/xf_client.h>
 #include <client/xfreerdp.h>
+#include <sip-transport.h>
 
 #include "sipmsg.h"
 #include "sipe-applicationsharing.h"
@@ -43,6 +43,9 @@
 #include "sipe-nls.h"
 #include "sipe-user.h"
 #include "sipe-utils.h"
+#include "sipe-session.h"
+
+struct monitor_sharing* user_list = NULL;
 
 struct sipe_appshare {
 	struct sipe_media_call *media;
@@ -52,6 +55,23 @@ struct sipe_appshare {
 	guint source_id;
 	struct sipe_user_ask_ctx *ask_ctx;
 };
+
+gboolean is_screen_shared(const gchar* user_name)
+{
+	struct monitor_sharing* temp = user_list;
+	while( temp != NULL )
+	{
+		if(temp->user_name == user_name && temp->server != NULL)
+		{
+			return TRUE;
+		}
+		else
+		{
+			temp = temp->next;
+		}
+	}
+	return FALSE;
+}
 
 static void
 unlink_appshare_socket(GSocket *socket)
@@ -235,22 +255,79 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 	}
 }
 
+void add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowServer* server)
+{
+	struct monitor_sharing* new_entry = (struct monitor_sharing*) malloc(sizeof(struct monitor_sharing));
+	struct monitor_sharing *temp = *list;
+
+	new_entry->user_name  = new_user;
+	new_entry->server = server;
+	new_entry->next = NULL;
+
+	if (*list == NULL)
+	{
+		*list = new_entry;
+		g_strdup_printf("User list is NULL");
+		return;
+    	}
+	while (temp->next != NULL)
+	{ 
+		if(temp->user_name == new_user && temp->server != NULL )
+		{
+			g_strdup_printf("User already exist or already shared");
+	       		return;
+		}
+		else
+		{
+			temp = temp->next;
+		}		
+   	}
+	temp->next = new_entry;		   
+}
+
+void delete_user(struct monitor_sharing **list, const gchar *user_name)
+{
+	struct monitor_sharing* temp = *list, *prev;
+
+	if (temp != NULL && temp->user_name == user_name)
+	{
+        	*list = temp->next;   
+		temp->server = NULL;
+		free(temp);
+        	return;
+    	}
+	while (temp != NULL && temp->user_name != user_name)
+	{
+        	prev = temp;
+        	temp = temp->next;
+	}
+	if (temp == NULL) 
+	{
+		g_strdup_printf("User list is NULL");				
+		return;
+	}
+	
+	prev->next = temp->next;
+	temp->server =  NULL;
+	free(temp);  
+}
 void start_sharing(struct sipe_media_call *call, char *freerdp_path, int MonitorIndex)
 {
-	rdpShadowServer* server;
 	struct sipe_core_private *sipe_private = sipe_media_get_sipe_core_private(call);
-	server = shadow_server_new();
-	server->ipcSocket = _strdup(freerdp_path);
-    	server->selectedMonitor = MonitorIndex;
-	if(!server)
+	call->server = shadow_server_new();
+	add_user(&user_list, call->user_name, call->server);
+	call->server->ipcSocket = _strdup(freerdp_path);
+    	call->server->selectedMonitor = MonitorIndex;
+	call->server->authentication  = FALSE;
+	if(!call->server)
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
                                 _("Application sharing error"),
                                 _("server is NULL"));
-	if(shadow_server_init(server) < 0)
+	if(shadow_server_init(call->server) < 0)
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
                                 _("Application sharing error"),
                                 _("Couldn't initialize shadow server"));		
-	if(shadow_server_start(server) < 0)
+	if(shadow_server_start(call->server) < 0)
 		 sipe_backend_notify_error(SIPE_CORE_PUBLIC,
                                 _("Application sharing error"),
                                 _("Couldn't start shadow server"));
@@ -430,6 +507,7 @@ sipe_core_share_application(struct sipe_core_public *sipe_public,
 	call->candidate_pair_established_cb = candidate_pair_established_cb;
 	call->read_cb = read_cb;
 	call->monitor = index;
+	call->user_name = who;
 
 	SIPE_CORE_PRIVATE->media_call = (struct sipe_media_call_private *)call;
 
@@ -459,11 +537,37 @@ sipe_core_share_application(struct sipe_core_public *sipe_public,
 					      "rdp");
 }
 
+void
+sipe_core_stop_share_application(__attribute__ ((unused))struct sipe_core_public *sipe_public,
+                            struct sipe_media_call* call,
+                            const gchar *who)
+{
+    	struct sip_dialog *dialog;
+	struct sipe_core_private *sipe_private ;
+	struct sip_session *session;
+			
+	dialog = sipe_media_get_sip_dialog(call);
+	sipe_private= sipe_media_get_sipe_core_private(call);
+	session = sipe_session_find_call(sipe_private,who);
+
+	if(call && call->server)
+		shadow_server_stop(call->server);
+	
+	delete_user(&user_list, who);
+
+	if (dialog)
+	{
+		sip_transport_bye(sipe_private, dialog);
+		sipe_dialog_remove(session, dialog->with);
+	}
+}
+
 /*
   Local Variables:
   mode: c
   c-file-style: "bsd"
   indent-tabs-mode: t
-  tab-width: 8
+ tab-width: 8
+ is the head of Tata Capital and was part of the team which had visi
   End:
 */

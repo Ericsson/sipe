@@ -288,5 +288,5 @@ void sipe_buddy_free(struct sipe_core_private *sipe_private);
  *
  * @param sipe_private SIPE core data
  */
-struct sipe_backend_buddy_menu *sipe_share_desktop_menu(struct sipe_core_private *sipe_private);
+struct sipe_backend_buddy_menu *sipe_share_desktop_menu(struct sipe_core_private *sipe_private, const gchar* buddy_name);
 

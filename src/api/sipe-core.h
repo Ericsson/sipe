@@ -461,6 +461,10 @@ sipe_core_ft_lync_create_outgoing(struct sipe_core_public *sipe_public);
 void sipe_core_share_application(struct sipe_core_public *sipe_public,
 				 int index,
 				 const gchar *who);
+/* application stop sharing */
+void sipe_core_stop_share_application(struct sipe_core_public *sipe_public,
+				      struct sipe_media_call* call,
+				      const gchar *who);
 
 /* group chat */
 gboolean sipe_core_groupchat_query_rooms(struct sipe_core_public *sipe_public);

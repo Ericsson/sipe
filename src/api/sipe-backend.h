@@ -37,6 +37,8 @@
  ***************** !!! IMPORTANT NOTE FOR BACKEND CODERS !!! *****************
  */
 
+#include <freerdp/server/shadow.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -374,6 +376,8 @@ struct sipe_media_call {
 
 	gchar *with;
 	int monitor;
+	rdpShadowServer* server;
+	const gchar* user_name;
 
 	void (*stream_initialized_cb)(struct sipe_media_call *,
 				      struct sipe_media_stream *);
@@ -1041,6 +1045,7 @@ enum sipe_buddy_menu_type {
 	SIPE_BUDDY_MENU_CHANGE_ACCESS_LEVEL,
 	SIPE_BUDDY_MENU_ADD_NEW_DOMAIN,
 	SIPE_BUDDY_MENU_SHARE_APPLICATION,
+	SIPE_BUDDY_MENU_STOP_SHARE_APPLICATION,
 	SIPE_BUDDY_MENU_TYPES
 };
 

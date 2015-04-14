@@ -539,11 +539,18 @@ sipe_invite_call(struct sipe_core_private *sipe_private, TransCallback tc)
 	gchar *body;
 	struct sipe_media_call_private *call_private = sipe_private->media_call;
 	struct sip_session *session;
-	struct sip_dialog *dialog;
+	struct sip_dialog *dialog = NULL;
 	struct sdpmsg *msg;
 
 	session = sipe_session_find_call(sipe_private, call_private->public.with);
-	dialog = session->dialogs->data;
+	if(!session)
+	{
+		g_strdup_printf("No session found");
+	}
+	else
+	{
+		dialog = session->dialogs->data;
+	}
 
 	contact = get_contact(sipe_private);
 
@@ -595,12 +602,18 @@ sipe_invite_call(struct sipe_core_private *sipe_private, TransCallback tc)
 
 	sdpmsg_free(msg);
 
-	dialog->outgoing_invite = sip_transport_invite(sipe_private,
-						       hdr,
-						       body,
-						       dialog,
-						       tc);
-
+	if(!dialog)
+	{
+		g_strdup_printf("No dialog available");
+	}
+	else
+	{
+		dialog->outgoing_invite = sip_transport_invite(sipe_private,
+							       hdr,
+							       body,
+							       dialog,
+							       tc);
+	}
 	g_free(body);
 	g_free(hdr);
 }

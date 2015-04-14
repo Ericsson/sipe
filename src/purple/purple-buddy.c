@@ -674,6 +674,17 @@ static void sipe_purple_buddy_share_application_cb(PurpleBuddy *buddy,
 				    purple_buddy_get_name(buddy));
 }
 
+static void sipe_purple_buddy_stop_share_application_cb(PurpleBuddy *buddy,
+                                                   SIPE_UNUSED_PARAMETER gpointer parameter)
+{
+
+        SIPE_DEBUG_INFO("sipe_purple_buddy_stop_share_application_cb: name '%s'",
+                        purple_buddy_get_name(buddy));
+
+        sipe_core_stop_share_application(PURPLE_BUDDY_TO_SIPE_CORE_PUBLIC,
+                                    parameter,
+                                    purple_buddy_get_name(buddy));
+}
 typedef void (*buddy_menu_callback)(PurpleBuddy *buddy,
 				    gpointer parameter);
 static const buddy_menu_callback callback_map[SIPE_BUDDY_MENU_TYPES] = {
@@ -687,6 +698,7 @@ static const buddy_menu_callback callback_map[SIPE_BUDDY_MENU_TYPES] = {
 /* SIPE_BUDDY_MENU_CHANGE_ACCESS_LEVEL */ sipe_purple_buddy_change_access_level_cb,
 /* SIPE_BUDDY_MENU_ADD_NEW_DOMAIN      */ sipe_purple_buddy_add_new_domain_cb,
 /* SIPE_BUDDY_MENU_SHARE_APPLICATION   */ sipe_purple_buddy_share_application_cb,
+/* SIPE_BUDDY_MENU_STOP_SHARE_APPLICATION */ sipe_purple_buddy_stop_share_application_cb,
 };
 
 struct sipe_backend_buddy_menu *sipe_backend_buddy_menu_start(SIPE_UNUSED_PARAMETER struct sipe_core_public *sipe_public)
