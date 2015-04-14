@@ -257,7 +257,7 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 
 void add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowServer* server)
 {
-	struct monitor_sharing* new_entry = (struct monitor_sharing*) malloc(sizeof(struct monitor_sharing));
+	struct monitor_sharing* new_entry = (struct monitor_sharing*) g_malloc0(sizeof(struct monitor_sharing));
 	struct monitor_sharing *temp = *list;
 
 	new_entry->user_name  = new_user;
@@ -275,7 +275,7 @@ void add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowSer
 		if(temp->user_name == new_user && temp->server != NULL )
 		{
 			g_strdup_printf("Screensharing already started with user");
-                        free(new_entry);
+                        g_free(new_entry);
 	       		return;
 		}
 		else
@@ -293,7 +293,7 @@ void delete_user(struct monitor_sharing **list, const gchar *user_name)
 	if (temp != NULL && temp->user_name == user_name)
 	{
         	*list = temp->next;   
-		free(temp);
+		g_free(temp);
         	return;
     	}
 	while (temp != NULL && temp->user_name != user_name)
@@ -308,7 +308,7 @@ void delete_user(struct monitor_sharing **list, const gchar *user_name)
 	}
 	
 	prev->next = temp->next;
-	free(temp);  
+	g_free(temp);
 }
 void start_sharing(struct sipe_media_call *call, char *freerdp_path, int MonitorIndex)
 {
