@@ -38,8 +38,11 @@ struct sip_session * sipe_session_find_call(struct sipe_core_private *sipe_priva
 
 void process_incoming_invite_applicationsharing(struct sipe_core_private *sipe_private,
 						struct sipmsg *msg);
-void start_sharing(struct sipe_media_call *call, gchar* freerdp_path, int MonitorIndex);
-void accept_sharing(gchar* sharing_path);
-void add_user(struct monitor_sharing** list, const gchar* new_user,rdpShadowServer* server);
-void delete_user(struct monitor_sharing **list, const gchar *user_name);
+
+//void accept_sharing(gchar* sharing_path);
+
+//void add_user(struct monitor_sharing** list, const gchar* new_user,rdpShadowServer* server);
+
+//void delete_user(struct monitor_sharing **list, const gchar *user_name);
+
 gboolean is_screen_shared(const gchar* user_name);
