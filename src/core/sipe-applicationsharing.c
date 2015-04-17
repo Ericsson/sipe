@@ -219,6 +219,29 @@ build_socket_path(struct sipe_media_call *call)
 }
 
 static void
+accept_sharing(gchar* sharing_path)
+{
+        RDP_CLIENT_ENTRY_POINTS clientEntryPoints;
+        rdpContext* context;
+
+        ZeroMemory(&clientEntryPoints, sizeof(RDP_CLIENT_ENTRY_POINTS));
+        clientEntryPoints.Size = sizeof(RDP_CLIENT_ENTRY_POINTS);
+        clientEntryPoints.Version = RDP_CLIENT_INTERFACE_VERSION;
+
+        RdpClientEntry(&clientEntryPoints);
+
+        context = freerdp_client_context_new(&clientEntryPoints);
+
+        context->settings->ServerHostname = _strdup(sharing_path);
+        context->settings->RdpSecurity = TRUE;
+        context->settings->TlsSecurity = FALSE;
+        context->settings->NlaSecurity = FALSE;
+        context->settings->ExtSecurity = FALSE;
+
+        freerdp_client_start(context);
+}
+
+static void
 writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 	    gboolean writable)
 {
@@ -254,8 +277,8 @@ writable_cb(struct sipe_media_call *call, struct sipe_media_stream *stream,
 		g_free(socket_path);
 	}
 }
-
-void add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowServer* server)
+static void
+add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowServer* server)
 {
 	struct monitor_sharing* new_entry = (struct monitor_sharing*) g_malloc0(sizeof(struct monitor_sharing));
 	struct monitor_sharing *temp = *list;
@@ -286,7 +309,8 @@ void add_user(struct monitor_sharing** list, const gchar* new_user, rdpShadowSer
 	temp->next = new_entry;		   
 }
 
-void delete_user(struct monitor_sharing **list, const gchar *user_name)
+static void
+delete_user(struct monitor_sharing **list, const gchar *user_name)
 {
 	struct monitor_sharing* temp = *list, *prev;
 
@@ -310,7 +334,8 @@ void delete_user(struct monitor_sharing **list, const gchar *user_name)
 	prev->next = temp->next;
 	g_free(temp);
 }
-void start_sharing(struct sipe_media_call *call, char *freerdp_path, int MonitorIndex)
+static void
+start_sharing(struct sipe_media_call *call, char *freerdp_path, int MonitorIndex)
 {
 	struct sipe_core_private *sipe_private = sipe_media_get_sipe_core_private(call);
 	call->server = shadow_server_new();
@@ -319,39 +344,24 @@ void start_sharing(struct sipe_media_call *call, char *freerdp_path, int Monitor
     	call->server->selectedMonitor = MonitorIndex;
 	call->server->authentication  = FALSE;
 	if(!call->server)
+	{
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
                                 _("Application sharing error"),
                                 _("server is NULL"));
+	}
 	if(shadow_server_init(call->server) < 0)
+	{
 		sipe_backend_notify_error(SIPE_CORE_PUBLIC,
                                 _("Application sharing error"),
-                                _("Couldn't initialize shadow server"));		
+                                _("Couldn't initialize shadow server"));
+	}		
 	if(shadow_server_start(call->server) < 0)
+	{
 		 sipe_backend_notify_error(SIPE_CORE_PUBLIC,
                                 _("Application sharing error"),
                                 _("Couldn't start shadow server"));
+	}
 		
-}
-void accept_sharing(gchar* sharing_path)
-{
-	RDP_CLIENT_ENTRY_POINTS clientEntryPoints;
-	rdpContext* context;
-
-	ZeroMemory(&clientEntryPoints, sizeof(RDP_CLIENT_ENTRY_POINTS));
-	clientEntryPoints.Size = sizeof(RDP_CLIENT_ENTRY_POINTS);
-	clientEntryPoints.Version = RDP_CLIENT_INTERFACE_VERSION;
-
-	RdpClientEntry(&clientEntryPoints);
-
-	context = freerdp_client_context_new(&clientEntryPoints);
-		
-	context->settings->ServerHostname = _strdup(sharing_path);
-	context->settings->RdpSecurity = TRUE;
-	context->settings->TlsSecurity = FALSE;
-	context->settings->NlaSecurity = FALSE;
-	context->settings->ExtSecurity = FALSE;
-	
-	freerdp_client_start(context);
 }
 
 static void
